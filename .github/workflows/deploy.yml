@@ -1,0 +1,105 @@
+# Build the math-qa + math-conversation wheels, push them to the
+# running ai-platform via `aiplatform deploy`, then build + push the
+# math-ui image.
+#
+# Required secrets / vars:
+#   secrets.PLATFORM_API_URL   the deployment-target API base URL
+#   secrets.GITHUB_TOKEN       (default) — for ghcr.io login
+
+name: Deploy math-app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy-wheels:
+    runs-on: ubuntu-latest
+    if: ${{ vars.PLATFORM_API_URL != '' || secrets.PLATFORM_API_URL != '' }}
+    steps:
+      - name: Checkout math-app
+        uses: actions/checkout@v4
+
+      - name: Checkout ai-platform (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: sepoul/ai-platform
+          path: ../ai-platform
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install aiplatform-core (for `aiplatform deploy` CLI)
+        run: uv pip install --system -e ../ai-platform/packages/core
+
+      - name: Install math packages (so deploy can introspect them)
+        run: |
+          uv pip install --system -e packages/math-qa
+          uv pip install --system -e packages/math-conversation
+
+      - name: Build wheels
+        run: |
+          uv build --wheel packages/math-qa
+          uv build --wheel packages/math-conversation
+
+      - name: Deploy math-qa bundle
+        env:
+          PLATFORM_API_URL: ${{ vars.PLATFORM_API_URL || secrets.PLATFORM_API_URL }}
+        run: aiplatform deploy --bundle packages/math-qa/bundle.toml --api-url "$PLATFORM_API_URL"
+
+      - name: Deploy math-conversation bundle
+        env:
+          PLATFORM_API_URL: ${{ vars.PLATFORM_API_URL || secrets.PLATFORM_API_URL }}
+        run: aiplatform deploy --bundle packages/math-conversation/bundle.toml --api-url "$PLATFORM_API_URL"
+
+  build-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout math-app into ./math-app
+        uses: actions/checkout@v4
+        with:
+          path: math-app
+
+      - name: Checkout ai-platform into ./ai-platform (sibling layout)
+        uses: actions/checkout@v4
+        with:
+          repository: sepoul/ai-platform
+          path: ai-platform
+          fetch-depth: 1
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # Build context is the workflow workspace, which now has the
+      # sibling layout the Dockerfile expects:
+      #   ./math-app/math-ui/  + ./ai-platform/sdk-ts/
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: math-app/math-ui/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/sepoul/math-ui:latest
+            ghcr.io/sepoul/math-ui:sha-${{ steps.sha.outputs.short }}
+          cache-from: type=gha,scope=math-ui
+          cache-to: type=gha,mode=max,scope=math-ui
