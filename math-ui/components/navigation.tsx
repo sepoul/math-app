@@ -8,6 +8,7 @@ import {
   FileType2,
   History,
   Home,
+  NotebookPen,
   Shapes,
   Sigma,
   Workflow,
@@ -29,6 +30,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Math Q&A",
     icon: Calculator,
     match: (p) => p.startsWith("/math-qa"),
+  },
+  {
+    href: "/math-notes",
+    label: "Daily notes",
+    icon: NotebookPen,
+    match: (p) => p.startsWith("/math-notes"),
   },
   {
     href: "/workflows",
