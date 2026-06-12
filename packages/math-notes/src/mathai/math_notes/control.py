@@ -19,8 +19,10 @@ def build_math_notes_control(artifact_api: ArtifactService) -> JobControl:
         artifacts = hydrate_artifact_refs(record, artifact_api)
         note = next((a for a in artifacts if isinstance(a, DailyNoteArtifact)), None)
         return MathNotesResult(
+            # artifact_id is a UUID; MathNotesResult.artifact_refs is list[str]
+            # (pydantic won't coerce), so stringify.
             note=note,
-            artifact_refs=[a.artifact_id for a in artifacts],
+            artifact_refs=[str(a.artifact_id) for a in artifacts],
         )
 
     return JobControl(
