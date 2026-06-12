@@ -1,10 +1,12 @@
 """Math-notes data models — submit input + typed result for the ingest job.
 
 The capture UI first uploads bytes to `POST /media` (getting back a
-`storage_ref`), then submits this job with that ref. The job is a thin
-write path: artifacts are only minted by jobs (there's no
-`POST /artifacts`), so this "ingest" job is how a `DailyNoteArtifact`
-comes to exist.
+`storage_ref`) — a voice note, and optionally one or more notebook
+photos — then submits this job with those refs. The job transcribes the
+audio (OpenAI, via the platform's `AudioInterpreter`) and mints a
+`DailyNoteArtifact` carrying the `transcript` + the blob refs. Artifacts
+are only minted by jobs (there's no `POST /artifacts`), so this ingest
+job is how a `DailyNoteArtifact` comes to exist.
 """
 from __future__ import annotations
 
@@ -20,17 +22,22 @@ from ai_platform.jobs.result import BaseJobResult
 class MathNotesInput(BaseJobInput):
     """Submit input for a `math_notes` ingest job.
 
-    `storage_ref` / `content_type` / `byte_size` come straight from the
-    `POST /media` response. `note_date` defaults to today (resolved in
-    the graph node) when omitted.
+    `audio_ref` is the voice note to transcribe (a `storage_ref` from the
+    `POST /media` response); `image_refs` are optional notebook photos
+    captured alongside it. `note_date` defaults to today (resolved in the
+    graph node) when omitted.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     job_type: Literal["math_notes"] = "math_notes"
-    storage_ref: str = Field(..., description="storage_ref returned by POST /media.")
-    content_type: Optional[str] = Field(None, description="Content-type of the uploaded blob.")
-    byte_size: Optional[int] = Field(None, description="Size in bytes of the uploaded blob.")
+    audio_ref: str = Field(
+        ..., description="storage_ref of the uploaded voice note (POST /media)."
+    )
+    image_refs: list[str] = Field(
+        default_factory=list,
+        description="Optional notebook-photo storage_refs captured with the note.",
+    )
     note_date: Optional[date] = Field(None, description="Study day; defaults to today.")
     created_by: Optional[str] = Field(None, description="The learner capturing the note.")
 
