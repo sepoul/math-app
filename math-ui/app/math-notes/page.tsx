@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Loader2, RefreshCw } from "lucide-react";
+import { Camera, Loader2, Mic, RefreshCw, Square, X } from "lucide-react";
 import { PageContainer, PageHeader, Section, EmptyCard, ErrorCard } from "@/components/library";
 import {
   fetchArtifacts,
@@ -9,39 +9,79 @@ import {
   jobsClient,
   TERMINAL_JOB_STATUSES,
 } from "@/lib/platform";
-import { notesClient, mediaSrc, type DailyNoteArtifact } from "@/lib/domains/math-notes";
+import {
+  notesClient,
+  mediaSrc,
+  mediaRefUrl,
+  type DailyNoteArtifact,
+} from "@/lib/domains/math-notes";
 
 // Single-learner MVP — `created_by` is stamped but not yet filtered on
-// (server-side `created_by` filtering is PR-3, not built). Per-user
-// scoping arrives with auth.
+// (server-side filtering is PR-3). Per-user scoping arrives with auth.
 const LEARNER = "me";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Poll a just-submitted job until it leaves the running states. Ingest
- * is near-instant (no LLM), so a short poll is enough. */
-async function waitForJob(jobId: string): Promise<void> {
-  for (let i = 0; i < 30; i++) {
-    const status = await jobsClient.getStatus(jobId);
-    if ((TERMINAL_JOB_STATUSES as readonly string[]).includes(status.status)) return;
+function audioExt(mime: string): string {
+  if (mime.includes("mp4") || mime.includes("m4a") || mime.includes("aac")) return "m4a";
+  if (mime.includes("webm")) return "webm";
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("wav")) return "wav";
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
+  return "webm";
+}
+
+/** Poll a just-submitted job until it leaves the running states. The
+ * worker transcribes the audio (one OpenAI call), so a short poll covers it. */
+async function waitForJob(jobId: string): Promise<string> {
+  for (let i = 0; i < 60; i++) {
+    const s = await jobsClient.getStatus(jobId);
+    if ((TERMINAL_JOB_STATUSES as readonly string[]).includes(s.status)) return s.status;
     await new Promise((r) => setTimeout(r, 500));
   }
+  return "TIMEOUT";
 }
 
 export default function MathNotesPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [noteDate, setNoteDate] = useState<string>(todayISO());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  // --- voice note ---
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  // Gate client-only capabilities behind `mounted` so the server render and
+  // the first client render agree (both treat recording as unavailable);
+  // otherwise the Record button's presence differs → hydration mismatch.
+  const [mounted, setMounted] = useState(false);
+  const canRecord = mounted && typeof window.MediaRecorder !== "undefined";
 
+  // --- photos ---
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+
+  // --- form / submit ---
+  const [noteDate, setNoteDate] = useState(todayISO());
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- gallery ---
   const [notes, setNotes] = useState<DailyNoteArtifact[]>([]);
-  const [notesError, setNotesError] = useState<string | null>(null);
   const [loadingNotes, setLoadingNotes] = useState(true);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [notesError, setNotesError] = useState<string | null>(null);
+
+  const setAudio = useCallback(
+    (blob: Blob | null) => {
+      setAudioUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return blob ? URL.createObjectURL(blob) : null;
+      });
+      setAudioBlob(blob);
+    },
+    []
+  );
 
   const loadNotes = useCallback(async () => {
     setLoadingNotes(true);
@@ -49,8 +89,8 @@ export default function MathNotesPage() {
     try {
       const list = await fetchArtifacts({ artifactType: "daily_note", limit: 100 });
       const summaries = list.artifacts.filter((a) => a.artifact_type === "daily_note");
-      // The list endpoint returns summaries (no storage_url); fetch each
-      // by id to get the hydrated download URL + note metadata.
+      // List endpoint returns summaries (no storage_url/transcript); fetch
+      // each by id for the hydrated audio URL + transcript + image refs.
       const full = await Promise.all(
         summaries.map((s) => fetchArtifact(s.artifact_id) as Promise<DailyNoteArtifact>)
       );
@@ -64,38 +104,95 @@ export default function MathNotesPage() {
   }, []);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     void loadNotes();
   }, [loadNotes]);
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = e.target.files?.[0] ?? null;
-    setFile(picked);
+  // ---- recording ----
+  async function startRecording() {
     setError(null);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(picked ? URL.createObjectURL(picked) : null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        const type = rec.mimeType || "audio/webm";
+        setAudio(new Blob(chunksRef.current, { type }));
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      recorderRef.current = rec;
+      rec.start();
+      setRecording(true);
+    } catch (e) {
+      setError(`microphone unavailable: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  function stopRecording() {
+    recorderRef.current?.stop();
+    setRecording(false);
+  }
+
+  function onPickAudio(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null;
+    setAudio(f);
+  }
+
+  function onPickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    photoUrls.forEach((u) => URL.revokeObjectURL(u));
+    setPhotos(files);
+    setPhotoUrls(files.map((f) => URL.createObjectURL(f)));
+  }
+
+  function removePhoto(i: number) {
+    URL.revokeObjectURL(photoUrls[i]);
+    setPhotos((p) => p.filter((_, idx) => idx !== i));
+    setPhotoUrls((u) => u.filter((_, idx) => idx !== i));
   }
 
   async function onSave() {
-    if (!file) return;
+    if (!audioBlob) {
+      setError("Record or choose a voice note first.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      setStatus("Uploading photo…");
-      const ref = await notesClient.uploadMedia(file);
-      setStatus("Saving note…");
+      setStatus("Uploading voice note…");
+      const audio = await notesClient.uploadMedia(
+        audioBlob,
+        `voice-note.${audioExt(audioBlob.type)}`
+      );
+
+      const imageRefs: string[] = [];
+      for (let i = 0; i < photos.length; i++) {
+        setStatus(`Uploading photo ${i + 1}/${photos.length}…`);
+        const ref = await notesClient.uploadMedia(photos[i]);
+        imageRefs.push(ref.storage_ref);
+      }
+
+      setStatus("Transcribing + saving…");
       const sub = await notesClient.ingestNote({
-        storageRef: ref.storage_ref,
-        contentType: ref.content_type,
-        byteSize: ref.byte_size,
+        audioRef: audio.storage_ref,
+        imageRefs,
         noteDate,
         createdBy: LEARNER,
       });
-      await waitForJob(sub.job_id);
-      // Clear the form and refresh the gallery.
-      setFile(null);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-      if (fileInput.current) fileInput.current.value = "";
+      const final = await waitForJob(sub.job_id);
+      if (final === "FAILED") throw new Error("Ingest job failed — check worker logs.");
+
+      // reset form
+      setAudio(null);
+      photoUrls.forEach((u) => URL.revokeObjectURL(u));
+      setPhotos([]);
+      setPhotoUrls([]);
       setStatus(null);
       await loadNotes();
     } catch (e) {
@@ -110,41 +207,93 @@ export default function MathNotesPage() {
     <PageContainer>
       <PageHeader
         title="Daily notes"
-        subtitle="Snap a photo of today's notebook page and save it as a dated note."
+        subtitle="Record a short voice note about today's session (and optionally snap your notebook). It gets transcribed and saved as a dated note."
       />
 
       <Section title="Capture">
-        <div className="max-w-md space-y-4">
-          <label
-            htmlFor="note-photo"
-            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-sm text-muted-foreground transition-colors hover:bg-muted/50"
-          >
-            <Camera className="size-6" />
-            {file ? file.name : "Tap to take a photo (or choose one)"}
-            <input
-              id="note-photo"
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={onPick}
-            />
-          </label>
+        <div className="max-w-md space-y-5">
+          {/* voice note */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Voice note</p>
+            <div className="flex flex-wrap items-center gap-3">
+              {canRecord &&
+                (recording ? (
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                  >
+                    <Square className="size-4" /> Stop
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    disabled={busy}
+                    className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                  >
+                    <Mic className="size-4" /> {audioBlob ? "Re-record" : "Record"}
+                  </button>
+                ))}
+              <label className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                or choose a file
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={onPickAudio}
+                />
+              </label>
+            </div>
+            {recording && (
+              <p className="flex items-center gap-1.5 text-xs text-red-600">
+                <span className="size-2 animate-pulse rounded-full bg-red-600" /> recording…
+              </p>
+            )}
+            {audioUrl && !recording && (
+              <audio controls src={audioUrl} className="w-full" />
+            )}
+          </div>
 
-          {previewUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt="Selected note preview"
-              className="max-h-72 w-full rounded-md border object-contain"
-            />
-          )}
-
-          <div className="flex items-center gap-3">
-            <label htmlFor="note-date" className="text-sm font-medium">
-              Date
+          {/* photos */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">
+              Notebook photos <span className="text-muted-foreground">(optional)</span>
+            </p>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+              <Camera className="size-4" /> Add photos
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                className="hidden"
+                onChange={onPickPhotos}
+              />
             </label>
+            {photoUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {photoUrls.map((u, i) => (
+                  <div key={u} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u} alt={`photo ${i + 1}`} className="size-20 rounded-md border object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      className="absolute -right-1.5 -top-1.5 rounded-full bg-foreground p-0.5 text-background"
+                      aria-label="remove photo"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* date + save */}
+          <div className="flex items-center gap-3">
+            <label htmlFor="note-date" className="text-sm font-medium">Date</label>
             <input
               id="note-date"
               type="date"
@@ -158,8 +307,8 @@ export default function MathNotesPage() {
           <button
             type="button"
             onClick={onSave}
-            disabled={!file || busy}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            disabled={!audioBlob || busy || recording}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {busy && <Loader2 className="size-4 animate-spin" />}
             {busy ? (status ?? "Saving…") : "Save note"}
@@ -177,8 +326,7 @@ export default function MathNotesPage() {
             onClick={() => void loadNotes()}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
-            <RefreshCw className="size-3.5" />
-            Refresh
+            <RefreshCw className="size-3.5" /> Refresh
           </button>
         }
       >
@@ -187,27 +335,34 @@ export default function MathNotesPage() {
         ) : loadingNotes ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : notes.length === 0 ? (
-          <EmptyCard>No notes yet. Capture your first one above.</EmptyCard>
+          <EmptyCard>No notes yet. Record your first one above.</EmptyCard>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="space-y-4">
             {notes.map((note) => (
-              <figure key={note.artifact_id} className="space-y-1.5">
-                {note.storage_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={mediaSrc(note.storage_url)}
-                    alt={`Note from ${note.note_date}`}
-                    className="aspect-[3/4] w-full rounded-md border object-cover"
-                  />
-                ) : (
-                  <div className="flex aspect-[3/4] w-full items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
-                    no image
+              <li key={note.artifact_id} className="space-y-2 rounded-lg border p-4">
+                <div className="text-xs font-medium text-muted-foreground">{note.note_date}</div>
+                {note.storage_url && (
+                  <audio controls src={mediaSrc(note.storage_url)} className="w-full" />
+                )}
+                <p className="text-sm">
+                  {note.transcript ?? <span className="text-muted-foreground italic">no transcript</span>}
+                </p>
+                {note.image_refs && note.image_refs.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {note.image_refs.map((ref) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={ref}
+                        src={mediaRefUrl(ref)}
+                        alt="notebook photo"
+                        className="size-24 rounded-md border object-cover"
+                      />
+                    ))}
                   </div>
                 )}
-                <figcaption className="text-xs text-muted-foreground">{note.note_date}</figcaption>
-              </figure>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </Section>
     </PageContainer>

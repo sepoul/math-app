@@ -3,24 +3,26 @@ import type { RunSubmitResponse } from "@/lib/platform";
 import type { MediaRef } from "./types";
 
 /**
- * Math-notes domain client — the two-step capture path:
+ * Math-notes domain client — the capture path is audio-first:
  *
- *   1. `uploadMedia(file)` POSTs the bytes to the BFF (`/api/media`),
- *      same-origin, which proxies to the platform `POST /media`. Returns
- *      a `storage_ref`.
- *   2. `ingestNote({ storageRef, … })` submits the `math_notes` job with
- *      that ref; the job mints the `DailyNoteArtifact` (artifacts are
- *      only written by jobs — there's no `POST /artifacts`).
+ *   1. `uploadMedia(blob)` POSTs bytes to the BFF (`/api/media`),
+ *      same-origin, proxied to the platform `POST /media`. Returns a
+ *      `MediaRef` whose `storage_ref` you keep. Used for the voice note
+ *      AND for each optional notebook photo.
+ *   2. `ingestNote({ audioRef, imageRefs, … })` submits the `math_notes`
+ *      job. The worker transcribes the audio (OpenAI) and mints the
+ *      `DailyNoteArtifact{ transcript, image_refs, storage_ref=audio }`.
+ *      Artifacts are only written by jobs — this is the write path.
  *
- * Upload goes through the BFF rather than the platform directly so the
- * browser stays same-origin over HTTPS (no mixed-content; the API URL
- * never leaves the server).
+ * Upload goes through the BFF (not the platform directly) so the browser
+ * stays same-origin over HTTPS.
  */
 export const notesClient = {
-  async uploadMedia(file: File): Promise<MediaRef> {
+  async uploadMedia(file: Blob, filename?: string): Promise<MediaRef> {
     const form = new FormData();
+    const name = filename ?? (file instanceof File ? file.name : "upload");
     // Field name must be `file` — matches `POST /media`'s `UploadFile`.
-    form.append("file", file);
+    form.append("file", file, name);
     const res = await fetch("/api/media", { method: "POST", body: form });
     if (!res.ok) {
       throw new Error(`media upload failed (${res.status}): ${await res.text()}`);
@@ -29,17 +31,15 @@ export const notesClient = {
   },
 
   ingestNote(input: {
-    storageRef: string;
-    contentType?: string | null;
-    byteSize?: number | null;
+    audioRef: string;
+    imageRefs?: string[];
     noteDate?: string | null;
     createdBy?: string | null;
   }): Promise<RunSubmitResponse> {
     return jobsClient.submit({
       job_type: "math_notes",
-      storage_ref: input.storageRef,
-      content_type: input.contentType ?? null,
-      byte_size: input.byteSize ?? null,
+      audio_ref: input.audioRef,
+      image_refs: input.imageRefs ?? [],
       note_date: input.noteDate ?? null,
       created_by: input.createdBy ?? null,
     });
@@ -47,10 +47,17 @@ export const notesClient = {
 };
 
 /**
- * Turn a platform-relative `storage_url` (`/media/download?ref=…`, as
- * hydrated onto an artifact by `GET /artifacts/{id}`) into a same-origin
- * URL the browser can load through the BFF.
+ * A hydrated artifact `storage_url` (`/media/download?ref=…`, filled in by
+ * `GET /artifacts/{id}`) → same-origin URL the browser loads via the BFF.
  */
 export function mediaSrc(storageUrl: string): string {
   return storageUrl.startsWith("/api") ? storageUrl : `/api${storageUrl}`;
+}
+
+/**
+ * A raw `storage_ref` (e.g. one of a note's `image_refs`, which aren't
+ * hydrated into URLs) → the same-origin download URL through the BFF.
+ */
+export function mediaRefUrl(ref: string): string {
+  return `/api/media/download?ref=${encodeURIComponent(ref)}`;
 }

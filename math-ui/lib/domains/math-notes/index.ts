@@ -4,4 +4,4 @@
  * platform never imports from this module.
  */
 export type { DailyNoteArtifact, MediaRef } from "./types";
-export { notesClient, mediaSrc } from "./client";
+export { notesClient, mediaSrc, mediaRefUrl } from "./client";
