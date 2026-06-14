@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Loader2, Mic, RefreshCw, Square, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, Mic, RefreshCw, Square, X } from "lucide-react";
 import { PageContainer, PageHeader, Section, EmptyCard, ErrorCard } from "@/components/library";
+import { Button } from "@/components/ui/button";
 import {
   fetchArtifacts,
   fetchArtifact,
@@ -146,9 +147,13 @@ export default function MathNotesPage() {
 
   function onPickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    photoUrls.forEach((u) => URL.revokeObjectURL(u));
-    setPhotos(files);
-    setPhotoUrls(files.map((f) => URL.createObjectURL(f)));
+    if (files.length === 0) return;
+    // Append, so "Take photo" and "Add from library" (and repeat taps)
+    // accumulate instead of replacing.
+    setPhotos((prev) => [...prev, ...files]);
+    setPhotoUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    // Reset so the same file — or another camera shot — can be picked again.
+    e.target.value = "";
   }
 
   function removePhoto(i: number) {
@@ -218,22 +223,13 @@ export default function MathNotesPage() {
             <div className="flex flex-wrap items-center gap-3">
               {canRecord &&
                 (recording ? (
-                  <button
-                    type="button"
-                    onClick={stopRecording}
-                    className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                  >
-                    <Square className="size-4" /> Stop
-                  </button>
+                  <Button variant="destructive" onClick={stopRecording}>
+                    <Square /> Stop
+                  </Button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={startRecording}
-                    disabled={busy}
-                    className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
-                  >
-                    <Mic className="size-4" /> {audioBlob ? "Re-record" : "Record"}
-                  </button>
+                  <Button variant="tonal" onClick={startRecording} disabled={busy}>
+                    <Mic /> {audioBlob ? "Re-record" : "Record"}
+                  </Button>
                 ))}
               <label className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
                 or choose a file
@@ -260,17 +256,32 @@ export default function MathNotesPage() {
             <p className="text-sm font-medium">
               Notebook photos <span className="text-muted-foreground">(optional)</span>
             </p>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
-              <Camera className="size-4" /> Add photos
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                className="hidden"
-                onChange={onPickPhotos}
-              />
-            </label>
+            <div className="flex flex-wrap gap-2">
+              {/* Direct rear-camera capture on phones (capture="environment",
+                  single shot — repeatable). */}
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                <Camera className="size-4" /> Take photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={onPickPhotos}
+                />
+              </label>
+              {/* Library / multi-select (no `capture`, so the OS offers the
+                  photo library and honours `multiple`). */}
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                <ImagePlus className="size-4" /> Add from library
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={onPickPhotos}
+                />
+              </label>
+            </div>
             {photoUrls.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {photoUrls.map((u, i) => (
@@ -304,15 +315,10 @@ export default function MathNotesPage() {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={!audioBlob || busy || recording}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {busy && <Loader2 className="size-4 animate-spin" />}
+          <Button onClick={onSave} disabled={!audioBlob || busy || recording}>
+            {busy && <Loader2 className="animate-spin" />}
             {busy ? (status ?? "Saving…") : "Save note"}
-          </button>
+          </Button>
 
           {error && <ErrorCard>{error}</ErrorCard>}
         </div>
@@ -321,13 +327,9 @@ export default function MathNotesPage() {
       <Section
         title="Your notes"
         actions={
-          <button
-            type="button"
-            onClick={() => void loadNotes()}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <RefreshCw className="size-3.5" /> Refresh
-          </button>
+          <Button variant="ghost" size="sm" onClick={() => void loadNotes()}>
+            <RefreshCw /> Refresh
+          </Button>
         }
       >
         {notesError ? (
@@ -339,7 +341,7 @@ export default function MathNotesPage() {
         ) : (
           <ul className="space-y-4">
             {notes.map((note) => (
-              <li key={note.artifact_id} className="space-y-2 rounded-lg border p-4">
+              <li key={note.artifact_id} className="space-y-2 rounded-2xl border border-border bg-card p-4 shadow-e1">
                 <div className="text-xs font-medium text-muted-foreground">{note.note_date}</div>
                 {note.storage_url && (
                   <audio controls src={mediaSrc(note.storage_url)} className="w-full" />

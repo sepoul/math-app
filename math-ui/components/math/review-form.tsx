@@ -123,10 +123,10 @@ export function ReviewForm({
                 <button
                   type="button"
                   onClick={() => setIsCorrect(isCorrect === true ? null : true)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
                     isCorrect === true
-                      ? "border-[var(--color-success)] bg-[var(--color-success)]/10 text-[var(--color-success)]"
-                      : "border-border text-muted-foreground hover:border-[var(--color-success)]/50"
+                      ? "border-transparent bg-[var(--success)]/15 text-[var(--success)]"
+                      : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                   disabled={submitting}
                 >
@@ -135,10 +135,10 @@ export function ReviewForm({
                 <button
                   type="button"
                   onClick={() => setIsCorrect(isCorrect === false ? null : false)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
                     isCorrect === false
-                      ? "border-destructive bg-destructive/10 text-destructive"
-                      : "border-border text-muted-foreground hover:border-destructive/50"
+                      ? "border-transparent bg-destructive/15 text-destructive"
+                      : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                   disabled={submitting}
                 >
@@ -175,7 +175,7 @@ export function ReviewForm({
               </label>
               <textarea
                 id="comment"
-                className="min-h-[80px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y"
+                className="min-h-[90px] w-full resize-y rounded-xl border border-input bg-transparent px-3.5 py-2.5 text-sm text-foreground transition-colors outline-none placeholder:text-muted-foreground hover:border-foreground/40 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/40"
                 placeholder="Was the reasoning clear? Any corrections?"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}

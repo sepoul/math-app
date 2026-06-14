@@ -5,60 +5,82 @@
 @custom-variant dark (&:is(.dark *));
 
 /* -------------------------------------------------------------------------
- * Theme tokens
+ * Material-3-flavoured theme tokens, on the shadcn token contract.
  *
- * shadcn's standard design tokens (--background, --foreground, --primary,
- * --muted, --card, --border, etc.) drive every primitive in components/ui.
- * Two extra semantic tokens (--success, --warning) cover non-destructive
- * states the kit doesn't define out-of-the-box; reach for them via
- * Tailwind's arbitrary-value syntax (e.g. `text-[var(--success)]`).
+ * shadcn's tokens (--background, --primary, --card, --muted, --border, …)
+ * drive every primitive in components/ui, so re-skinning here re-skins the
+ * whole app. The mapping to Material 3 roles:
+ *
+ *   --background        → M3 surface          --foreground      → on-surface
+ *   --card              → surface-container    --muted           → surface-variant
+ *   --primary           → primary              --secondary       → secondary-container (tonal)
+ *   --accent            → state-layer surface  --tertiary        → tertiary (accent)
+ *   --border            → outline-variant      --ring            → primary @ focus
+ *   --destructive       → error
+ *
+ * Bold M3: a vivid indigo-violet primary, tonal containers (coloured, not
+ * grey), elevation shadows (--shadow-e1..e4), and large radii.
  * ----------------------------------------------------------------------- */
 
 :root {
-  --radius: 0.625rem;
+  /* M3 shapes — large-ish corners. Buttons are pill (rounded-full) in the
+   * component; cards/sheets derive from --radius. */
+  --radius: 1rem;
 
-  --background: oklch(0.99 0.002 247);
-  --foreground: oklch(0.18 0.02 256);
+  /* surfaces */
+  --background: oklch(0.99 0.004 286);
+  --foreground: oklch(0.21 0.02 286);
 
   --card: oklch(1 0 0);
   --card-foreground: var(--foreground);
-  --popover: var(--card);
+  --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.52 0.18 264);
-  --primary-foreground: oklch(0.99 0 0);
+  /* primary */
+  --primary: oklch(0.52 0.2 283);
+  --primary-foreground: oklch(0.99 0.01 283);
 
-  --secondary: oklch(0.96 0.005 256);
-  --secondary-foreground: oklch(0.22 0.02 256);
+  /* secondary = M3 secondary-container (tonal, coloured) */
+  --secondary: oklch(0.92 0.045 286);
+  --secondary-foreground: oklch(0.31 0.09 283);
 
-  --muted: oklch(0.96 0.005 256);
-  --muted-foreground: oklch(0.5 0.02 256);
+  /* tertiary = M3 tertiary accent (rose) */
+  --tertiary: oklch(0.58 0.14 350);
+  --tertiary-foreground: oklch(0.99 0.01 350);
 
-  --accent: oklch(0.96 0.005 256);
-  --accent-foreground: oklch(0.22 0.02 256);
+  /* surface-variant / state layers */
+  --muted: oklch(0.955 0.008 286);
+  --muted-foreground: oklch(0.46 0.02 286);
+  --accent: oklch(0.94 0.025 286);
+  --accent-foreground: oklch(0.28 0.06 283);
 
-  --destructive: oklch(0.59 0.22 27);
+  --destructive: oklch(0.57 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.92 0.006 256);
-  --input: oklch(0.92 0.006 256);
-  --ring: oklch(0.52 0.18 264 / 0.4);
+  --border: oklch(0.9 0.008 286);
+  --input: oklch(0.88 0.01 286);
+  --ring: oklch(0.52 0.2 283 / 0.5);
 
   --success: oklch(0.6 0.15 160);
-  --warning: oklch(0.7 0.16 70);
+  --warning: oklch(0.72 0.16 70);
 
-  --sidebar: var(--card);
+  /* navigation drawer = surface-container-low */
+  --sidebar: oklch(0.975 0.006 286);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-accent: oklch(0.92 0.045 286);
+  --sidebar-accent-foreground: oklch(0.31 0.09 283);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 
-  /* Backwards-compat aliases for legacy `var(--color-*)` references in
-   * older components. New code should use shadcn tokens directly
-   * (text-foreground, text-muted-foreground, border-border, etc.). */
+  /* Material elevation (light). Dark leans on surface tones instead. */
+  --shadow-e1: 0 1px 2px 0 oklch(0 0 0 / 0.08), 0 1px 3px 1px oklch(0 0 0 / 0.05);
+  --shadow-e2: 0 1px 2px 0 oklch(0 0 0 / 0.08), 0 2px 6px 2px oklch(0 0 0 / 0.06);
+  --shadow-e3: 0 4px 8px 3px oklch(0 0 0 / 0.06), 0 1px 3px 0 oklch(0 0 0 / 0.1);
+  --shadow-e4: 0 6px 10px 4px oklch(0 0 0 / 0.06), 0 2px 3px 0 oklch(0 0 0 / 0.12);
+
+  /* Backwards-compat aliases for legacy var(--color-*) references. */
   --color-text: var(--foreground);
   --color-text-muted: var(--muted-foreground);
   --color-surface: var(--card);
@@ -71,44 +93,51 @@
 }
 
 .dark {
-  --background: oklch(0.13 0.02 256);
-  --foreground: oklch(0.97 0.005 256);
+  --background: oklch(0.17 0.012 286);
+  --foreground: oklch(0.96 0.005 286);
 
-  --card: oklch(0.17 0.02 256);
+  --card: oklch(0.21 0.015 286);
   --card-foreground: var(--foreground);
-  --popover: var(--card);
+  --popover: oklch(0.22 0.015 286);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.7 0.17 264);
-  --primary-foreground: oklch(0.13 0.02 256);
+  --primary: oklch(0.8 0.13 286);
+  --primary-foreground: oklch(0.22 0.07 286);
 
-  --secondary: oklch(0.22 0.02 256);
-  --secondary-foreground: var(--foreground);
+  --secondary: oklch(0.31 0.04 286);
+  --secondary-foreground: oklch(0.9 0.04 286);
 
-  --muted: oklch(0.22 0.02 256);
-  --muted-foreground: oklch(0.7 0.02 256);
+  --tertiary: oklch(0.8 0.1 350);
+  --tertiary-foreground: oklch(0.24 0.06 350);
 
-  --accent: oklch(0.22 0.02 256);
-  --accent-foreground: var(--foreground);
+  --muted: oklch(0.26 0.016 286);
+  --muted-foreground: oklch(0.72 0.02 286);
+  --accent: oklch(0.29 0.025 286);
+  --accent-foreground: oklch(0.92 0.03 286);
 
   --destructive: oklch(0.7 0.18 22);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.27 0.02 256);
-  --input: oklch(0.27 0.02 256);
-  --ring: oklch(0.7 0.17 264 / 0.45);
+  --border: oklch(0.31 0.016 286);
+  --input: oklch(0.34 0.018 286);
+  --ring: oklch(0.8 0.13 286 / 0.55);
 
-  --success: oklch(0.7 0.15 160);
-  --warning: oklch(0.78 0.16 70);
+  --success: oklch(0.72 0.15 160);
+  --warning: oklch(0.8 0.16 70);
 
-  --sidebar: var(--card);
+  --sidebar: oklch(0.2 0.014 286);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-accent: oklch(0.31 0.04 286);
+  --sidebar-accent-foreground: oklch(0.9 0.04 286);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
+
+  --shadow-e1: 0 1px 2px 0 oklch(0 0 0 / 0.3), 0 1px 3px 1px oklch(0 0 0 / 0.18);
+  --shadow-e2: 0 1px 2px 0 oklch(0 0 0 / 0.3), 0 2px 6px 2px oklch(0 0 0 / 0.2);
+  --shadow-e3: 0 4px 8px 3px oklch(0 0 0 / 0.22), 0 1px 3px 0 oklch(0 0 0 / 0.3);
+  --shadow-e4: 0 6px 10px 4px oklch(0 0 0 / 0.22), 0 2px 3px 0 oklch(0 0 0 / 0.34);
 
   --color-text: var(--foreground);
   --color-text-muted: var(--muted-foreground);
@@ -132,6 +161,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
@@ -154,12 +185,18 @@
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-geist-sans);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 6px);
+  --radius-lg: calc(var(--radius) - 4px);
+  --radius-xl: var(--radius);
+  --radius-2xl: calc(var(--radius) + 4px);
+
+  --shadow-e1: var(--shadow-e1);
+  --shadow-e2: var(--shadow-e2);
+  --shadow-e3: var(--shadow-e3);
+  --shadow-e4: var(--shadow-e4);
 }
 
 @layer base {
@@ -169,6 +206,7 @@
   html {
     @apply font-sans antialiased;
     font-feature-settings: "ss01", "cv11";
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-background text-foreground;

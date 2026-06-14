@@ -162,7 +162,7 @@ export default function FiguresPlaygroundPage() {
                 setSource(JSON.stringify(ex.spec, null, 2));
                 setValidation({ status: "idle" });
               }}
-              className="group inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+              className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               <Wand2 className="size-3 text-muted-foreground/70 group-hover:text-primary" />
               {ex.name}
@@ -180,7 +180,7 @@ export default function FiguresPlaygroundPage() {
               setValidation({ status: "idle" });
             }}
             spellCheck={false}
-            className="min-h-[460px] w-full resize-y rounded-md border bg-card px-3 py-2 font-mono text-[13px] leading-relaxed shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+            className="min-h-[460px] w-full resize-y rounded-xl border border-input bg-card px-3.5 py-2.5 font-mono text-[13px] leading-relaxed outline-none transition-colors hover:border-foreground/40 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/40"
           />
           <ValidationBadge state={validation} parsed={parsed} />
         </Section>

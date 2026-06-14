@@ -8,17 +8,17 @@ export interface BreadcrumbItem {
 export function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
   return (
     <nav aria-label="Breadcrumb" className="mb-3">
-      <ol className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
+      <ol className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           return (
             <li key={`${item.label}-${index}`} className="flex items-center gap-2">
               {item.href && !isLast ? (
-                <Link href={item.href} className="hover:text-text hover:underline">
+                <Link href={item.href} className="hover:text-foreground hover:underline">
                   {item.label}
                 </Link>
               ) : (
-                <span className={isLast ? "text-text font-medium" : ""}>
+                <span className={isLast ? "font-medium text-foreground" : ""}>
                   {item.label}
                 </span>
               )}

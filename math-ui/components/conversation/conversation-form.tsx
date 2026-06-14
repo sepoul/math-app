@@ -46,7 +46,7 @@ export function ConversationForm({ onJobStarted }: ConversationFormProps) {
             </label>
             <textarea
               id="conversation-question"
-              className="min-h-[110px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y"
+              className="min-h-[110px] w-full resize-y rounded-xl border border-input bg-transparent px-3.5 py-2.5 text-sm text-foreground transition-colors outline-none placeholder:text-muted-foreground hover:border-foreground/40 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/40"
               placeholder="e.g. Explain why the determinant of a 2×2 matrix gives a signed area."
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
@@ -83,7 +83,7 @@ export function ConversationForm({ onJobStarted }: ConversationFormProps) {
                 )
               }
               disabled={submitting}
-              className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-24 rounded-xl border border-input bg-transparent px-3.5 py-2 text-sm outline-none transition-colors hover:border-foreground/40 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/40"
             />
           </div>
 
