@@ -1,0 +1,36 @@
+# Bundle manifest for the math_notes domain.
+#
+# Contract-first dev loop (the point of this slice — build UI + backend in
+# parallel against a typed contract):
+#
+#     # 1. Publish JUST the artifact types — no wheel, no job needed yet.
+#     #    `control_entrypoint` is imported in-process, so the package must be
+#     #    importable in the venv running the CLI:
+#     #      pip install -e packages/math-notes --no-deps
+#     uv run aiplatform declare-artifacts \
+#         --bundle packages/math-notes/bundle.toml \
+#         --api-url http://localhost:8000
+#
+#     # 2. Regenerate the SDK types from the local stack → DailyNoteArtifact
+#     #    (and storage_url) light up for the UI:
+#     OPENAPI_SOURCE=http://localhost:8000/openapi.json \
+#         npm --prefix ../../ai-platform/sdk-ts run gen:api
+#
+# Once the ingest job + capture UI work, ship the wheel the normal way:
+#
+#     cd packages/math-notes && uv build --wheel
+#     uv run aiplatform deploy --bundle packages/math-notes/bundle.toml \
+#                              --api-url http://your-platform:8000
+
+[package]
+name    = "mathai-math-notes"
+version = "0.1.2"
+runtime = "default"
+# Path is recorded for `deploy`; `declare-artifacts` never reads the file, so
+# it's fine for this to not exist yet during the contract-first step.
+wheel   = "dist/mathai_math_notes-0.1.2-py3-none-any.whl"
+
+[control]
+domain               = "math_notes"
+control_entrypoint   = "mathai.math_notes.control:register_control"
+execution_entrypoint = "mathai.math_notes.execution:register_execution"

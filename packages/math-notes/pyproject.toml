@@ -1,0 +1,38 @@
+[project]
+name = "mathai-math-notes"
+version = "0.1.2"
+description = "math_notes domain — daily-notes ingest. A learner uploads a voice note (+ optional notebook photos) via POST /media; this job transcribes the audio (OpenAI, via the platform's AudioInterpreter over a PlatformSession) and persists a storage_ref-backed DailyNoteArtifact carrying the transcript. Ships in the `default` worker runtime. OCR over the photos / topic-linking are later additions."
+requires-python = ">=3.13"
+
+# Control-plane-only deps. The control module (`mathai.math_notes.control`)
+# is imported by the API at boot (and by `aiplatform declare-artifacts`) to
+# register the JobControl + artifact types; it must stay engine-free, so we
+# don't pull any LLM / vision stack here. `aiplatform-core` covers everything
+# control-side needs.
+dependencies = [
+    "aiplatform-core",
+]
+
+[project.optional-dependencies]
+# Execution-side deps — pulled by `packages/worker[default]`. Intentionally
+# EMPTY: transcription uses the platform's `AudioInterpreter` and the `openai`
+# SDK that ships in the worker base (present in both runtimes), so the domain
+# pulls no AI/LLM library of its own. A later OCR step over `image_refs` would
+# likewise lean on a platform-provided helper, not a domain dep.
+execution = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
+
+[tool.uv.sources]
+# `aiplatform-core` lives in the ai-platform repo. CI installs it from the
+# upstream git URL (see .github/workflows/deploy.yml). For local dev, install
+# this package into the venv that has the `aiplatform` CLI with
+# `pip install -e packages/math-notes --no-deps` (aiplatform-core is already
+# there), or set MATHAPP_AIPLATFORM_PATH to a local checkout.
+aiplatform-core = { git = "https://github.com/sepoul/ai-platform.git", subdirectory = "packages/core" }

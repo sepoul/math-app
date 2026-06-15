@@ -1,122 +1,25 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  Boxes,
-  Calculator,
-  FileType2,
-  History,
-  Home,
-  Shapes,
-  Sigma,
-  Workflow,
-  type LucideIcon,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Brand } from "@/components/brand";
+import { NavList } from "@/components/nav-items";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  match: (pathname: string) => boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Home", icon: Home, match: (p) => p === "/" },
-  {
-    href: "/math-qa",
-    label: "Math Q&A",
-    icon: Calculator,
-    match: (p) => p.startsWith("/math-qa"),
-  },
-  {
-    href: "/workflows",
-    label: "Workflows",
-    icon: Workflow,
-    match: (p) => p.startsWith("/workflows"),
-  },
-  {
-    href: "/jobs",
-    label: "Jobs",
-    icon: History,
-    match: (p) => p.startsWith("/jobs"),
-  },
-  {
-    href: "/artifacts",
-    label: "Artifacts",
-    icon: Boxes,
-    match: (p) => p.startsWith("/artifacts"),
-  },
-  {
-    href: "/artifact-types",
-    label: "Artifact types",
-    icon: FileType2,
-    match: (p) => p.startsWith("/artifact-types"),
-  },
-  {
-    href: "/latex",
-    label: "LaTeX scratch",
-    icon: Sigma,
-    match: (p) => p.startsWith("/latex"),
-  },
-  {
-    href: "/figures",
-    label: "Figure scratch",
-    icon: Shapes,
-    match: (p) => p.startsWith("/figures"),
-  },
-];
-
+/**
+ * Desktop persistent navigation drawer (Material 3). Hidden on mobile —
+ * the mobile drawer lives in `AppShell` as a modal Sheet.
+ */
 export function Navigation() {
-  const pathname = usePathname();
-
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r bg-sidebar">
-      <div className="flex h-14 items-center gap-2.5 border-b px-5">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-sidebar-foreground transition-colors hover:text-primary"
-        >
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <Calculator className="size-4" />
-          </div>
-          <span className="text-sm font-semibold tracking-tight">Math AI</span>
-        </Link>
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      <div className="flex h-16 items-center px-5">
+        <Brand />
       </div>
-
-      <nav className="flex-1 overflow-y-auto p-3">
-        <ul className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => {
-            const active = item.match(pathname);
-            const Icon = item.icon;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      "size-4 shrink-0",
-                      active ? "text-primary" : "text-sidebar-foreground/60"
-                    )}
-                  />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <NavList />
       </nav>
-
-      <div className="border-t px-5 py-3 text-[11px] text-sidebar-foreground/50">
-        Platform · v0.1
+      <div className="flex items-center justify-between gap-2 px-4 py-3">
+        <span className="text-[11px] text-muted-foreground">Platform · v0.1</span>
+        <ThemeToggle />
       </div>
     </aside>
   );

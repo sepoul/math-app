@@ -51,7 +51,7 @@ export function QuestionForm({ onJobStarted }: QuestionFormProps) {
             </label>
             <textarea
               id="question"
-              className="min-h-[100px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y"
+              className="min-h-[110px] w-full resize-y rounded-xl border border-input bg-transparent px-3.5 py-2.5 text-sm text-foreground transition-colors outline-none placeholder:text-muted-foreground hover:border-foreground/40 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/40"
               placeholder="e.g. Solve x² + 5x + 6 = 0"
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
@@ -70,10 +70,10 @@ export function QuestionForm({ onJobStarted }: QuestionFormProps) {
                   key={t}
                   type="button"
                   onClick={() => setTopic(topic === t ? "" : t)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
                     topic === t
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/50 hover:text-card-foreground"
+                      ? "border-transparent bg-secondary text-secondary-foreground"
+                      : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                   disabled={submitting}
                 >

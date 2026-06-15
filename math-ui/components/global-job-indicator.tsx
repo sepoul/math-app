@@ -3,6 +3,16 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
+  Check,
+  ChevronRight,
+  Clock,
+  Loader2,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
   getAllActiveJobs,
   clearAllActiveJobs,
   type ActiveJobEntry,
@@ -91,183 +101,195 @@ export function GlobalJobIndicator() {
   const hasDone = doneList.length > 0;
   const hasAnything = count > 0 || hasDone;
 
+  // Accent colour for the rail by state.
+  const railTone =
+    runningCount > 0
+      ? "border-primary text-primary"
+      : waitingCount > 0
+        ? "border-warning text-warning"
+        : hasDone
+          ? "border-success text-success"
+          : "border-border text-muted-foreground";
+
   return (
     <>
+      {/* Edge rail toggle */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="fixed right-0 top-1/2 z-50 -translate-y-1/2 flex flex-col items-center gap-2 rounded-l-xl border border-r-0 px-2.5 py-4 shadow-xl transition-all hover:px-3"
-        style={{
-          background: hasAnything ? "var(--color-surface-elevated)" : "var(--color-surface)",
-          borderColor: runningCount > 0
-            ? "var(--color-primary)"
-            : waitingCount > 0
-              ? "var(--color-warning, #f59e0b)"
-              : hasDone
-                ? "var(--color-success)"
-                : "var(--color-border)",
-        }}
         aria-label={open ? "Close job panel" : "Open job panel"}
+        className={cn(
+          "fixed right-0 top-1/2 z-50 flex -translate-y-1/2 flex-col items-center gap-2 rounded-l-2xl border border-r-0 bg-card px-2.5 py-4 shadow-e3 transition-all hover:px-3",
+          railTone
+        )}
       >
         {runningCount > 0 ? (
-          <span className="relative flex h-3.5 w-3.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-primary" />
+          <span className="relative flex size-3.5">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex size-3.5 rounded-full bg-primary" />
           </span>
         ) : waitingCount > 0 ? (
-          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: "var(--color-warning, #f59e0b)" }}>
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M12 9v4M12 17h.01" /></svg>
-          </span>
+          <AlertCircle className="size-4 text-warning" />
         ) : hasDone ? (
-          <span className="flex h-3.5 w-3.5 rounded-full bg-[var(--color-success)]" />
+          <span className="flex size-3.5 rounded-full bg-success" />
         ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-muted">
-            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-          </svg>
+          <Clock className="size-4 text-muted-foreground" />
         )}
         <span
-          className="font-bold uppercase tracking-widest"
-          style={{
-            writingMode: "vertical-rl",
-            fontSize: count > 0 ? 11 : 10,
-            letterSpacing: "0.12em",
-            color: runningCount > 0
-              ? "var(--color-primary)"
-              : waitingCount > 0
-                ? "var(--color-warning, #f59e0b)"
-                : hasDone
-                  ? "var(--color-success)"
-                  : "var(--color-text-muted)",
-          }}
+          className="text-[11px] font-bold tracking-widest"
+          style={{ writingMode: "vertical-rl", letterSpacing: "0.12em" }}
         >
-          {runningCount > 0 ? `${runningCount} JOB${runningCount > 1 ? "S" : ""}` : waitingCount > 0 ? "REVIEW" : hasDone ? "DONE" : "JOBS"}
+          {runningCount > 0
+            ? `${runningCount} JOB${runningCount > 1 ? "S" : ""}`
+            : waitingCount > 0
+              ? "REVIEW"
+              : hasDone
+                ? "DONE"
+                : "JOBS"}
         </span>
       </button>
 
+      {/* Slide-out panel */}
       <div
-        className="fixed right-0 top-0 z-40 h-full w-72 border-l border-border bg-surface shadow-2xl transition-transform duration-200 ease-in-out flex flex-col"
+        className="fixed right-0 top-0 z-40 flex h-full w-72 flex-col border-l border-border bg-card shadow-e4 transition-transform duration-200 ease-in-out"
         style={{ transform: open ? "translateX(0)" : "translateX(100%)" }}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold text-text">Jobs</h2>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDebugClear}
-              className="rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-surface-elevated hover:text-text transition-colors"
-              style={{ display: process.env.NODE_ENV === "production" ? "none" : undefined }}
-              title="Debug: clear local active jobs"
-            >
-              Clear Local
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-md p-1 text-text-muted hover:bg-surface-elevated hover:text-text transition-colors"
-              aria-label="Close"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
+          <h2 className="font-heading text-sm font-semibold text-foreground">Jobs</h2>
+          <div className="flex items-center gap-1">
+            {process.env.NODE_ENV !== "production" && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handleDebugClear}
+                title="Debug: clear local active jobs"
+              >
+                Clear local
+              </Button>
+            )}
+            <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close">
+              <X />
+            </Button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {!hasAnything && (
-            <div className="flex flex-col items-center justify-center h-full px-4 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-elevated mb-3">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
-                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                </svg>
+            <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+              <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-accent">
+                <Clock className="size-5 text-muted-foreground" />
               </div>
-              <p className="text-sm text-text-muted">No jobs running</p>
-              <p className="mt-1 text-xs text-text-muted/70">Submit a math question to get started.</p>
+              <p className="text-sm text-muted-foreground">No jobs running</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                Submit a math question to get started.
+              </p>
             </div>
           )}
 
           {runningCount > 0 && (
-            <div className="px-3 pt-3 pb-1">
-              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Running</p>
-              <div className="space-y-1">
-                {running.map((job) => (
-                  <Link
-                    key={`run-${job.jobType}::${job.entityId ?? ""}`}
-                    href={JOB_LINKS[job.jobType]?.(job) ?? "/"}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-surface-elevated group"
-                  >
-                    <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-text font-medium truncate text-xs group-hover:text-primary transition-colors">{JOB_LABELS[job.jobType]}</p>
-                      <p className="text-[10px] text-text-muted">Started {formatAge(job.timestamp)}</p>
-                    </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-text-muted/40">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <JobGroup label="Running">
+              {running.map((job) => (
+                <JobRow
+                  key={`run-${job.jobType}::${job.entityId ?? ""}`}
+                  href={JOB_LINKS[job.jobType]?.(job) ?? "/"}
+                  onClick={() => setOpen(false)}
+                  icon={<Loader2 className="size-4 shrink-0 animate-spin text-primary" />}
+                  title={JOB_LABELS[job.jobType]}
+                  subtitle={`Started ${formatAge(job.timestamp)}`}
+                />
+              ))}
+            </JobGroup>
           )}
 
           {waitingCount > 0 && (
-            <div className="px-3 pt-3 pb-1">
-              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-warning, #f59e0b)" }}>
-                Needs your review
-              </p>
-              <div className="space-y-1">
-                {waiting.map((job) => (
-                  <Link
-                    key={`wait-${job.jobType}::${job.entityId ?? ""}`}
-                    href={JOB_LINKS[job.jobType]?.(job) ?? "/"}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-surface-elevated group"
-                  >
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: "var(--color-warning, #f59e0b)" }}>
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M12 9v4M12 17h.01" /></svg>
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium truncate" style={{ color: "var(--color-warning, #f59e0b)" }}>{JOB_LABELS[job.jobType]}</p>
-                      <p className="text-[10px] text-text-muted">Awaiting your input</p>
-                    </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-text-muted/40">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <JobGroup label="Needs your review" tone="text-warning">
+              {waiting.map((job) => (
+                <JobRow
+                  key={`wait-${job.jobType}::${job.entityId ?? ""}`}
+                  href={JOB_LINKS[job.jobType]?.(job) ?? "/"}
+                  onClick={() => setOpen(false)}
+                  icon={<AlertCircle className="size-4 shrink-0 text-warning" />}
+                  title={JOB_LABELS[job.jobType]}
+                  subtitle="Awaiting your input"
+                  titleClassName="text-warning"
+                />
+              ))}
+            </JobGroup>
           )}
 
           {hasDone && (
-            <div className="px-3 pt-3 pb-1">
-              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Just finished</p>
-              <div className="space-y-1">
-                {doneList.map((d, i) => (
-                  <Link
-                    key={`done-${d.jobType}-${i}`}
-                    href={d.link}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-surface-elevated group"
-                  >
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--color-success)]/15">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+            <JobGroup label="Just finished">
+              {doneList.map((d, i) => (
+                <JobRow
+                  key={`done-${d.jobType}-${i}`}
+                  href={d.link}
+                  onClick={() => setOpen(false)}
+                  icon={
+                    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-success/20">
+                      <Check className="size-2.5 text-success" />
                     </span>
-                    <p className="text-xs font-medium text-[var(--color-success)] truncate flex-1">{d.label} completed</p>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-text-muted/40">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  </Link>
-                ))}
-              </div>
-            </div>
+                  }
+                  title={`${d.label} completed`}
+                  titleClassName="text-success"
+                />
+              ))}
+            </JobGroup>
           )}
         </div>
       </div>
-
-      {open && <div className="fixed inset-0 z-30 bg-black/10 pointer-events-none" />}
     </>
+  );
+}
+
+function JobGroup({
+  label,
+  tone = "text-muted-foreground",
+  children,
+}: {
+  label: string;
+  tone?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="px-3 pt-3 pb-1">
+      <p className={cn("mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider", tone)}>
+        {label}
+      </p>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function JobRow({
+  href,
+  onClick,
+  icon,
+  title,
+  subtitle,
+  titleClassName,
+}: {
+  href: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  titleClassName?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-accent"
+    >
+      {icon}
+      <div className="min-w-0 flex-1">
+        <p className={cn("truncate text-xs font-medium text-foreground", titleClassName)}>
+          {title}
+        </p>
+        {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
+      </div>
+      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/40" />
+    </Link>
   );
 }
 
