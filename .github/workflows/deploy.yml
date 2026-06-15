@@ -47,11 +47,13 @@ jobs:
         run: |
           uv pip install --system -e packages/math-qa
           uv pip install --system -e packages/math-conversation
+          uv pip install --system -e packages/math-notes
 
       - name: Build wheels
         run: |
           uv build --wheel packages/math-qa
           uv build --wheel packages/math-conversation
+          uv build --wheel packages/math-notes
 
       - name: Deploy math-qa bundle
         env:
@@ -62,6 +64,11 @@ jobs:
         env:
           PLATFORM_API_URL: ${{ vars.PLATFORM_API_URL || secrets.PLATFORM_API_URL }}
         run: aiplatform deploy --bundle packages/math-conversation/bundle.toml --api-url "$PLATFORM_API_URL"
+
+      - name: Deploy math-notes bundle
+        env:
+          PLATFORM_API_URL: ${{ vars.PLATFORM_API_URL || secrets.PLATFORM_API_URL }}
+        run: aiplatform deploy --bundle packages/math-notes/bundle.toml --api-url "$PLATFORM_API_URL"
 
   build-ui:
     runs-on: ubuntu-latest
