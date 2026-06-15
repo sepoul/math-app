@@ -20,16 +20,24 @@ permissions:
 jobs:
   deploy-wheels:
     runs-on: ubuntu-latest
-    if: ${{ vars.PLATFORM_API_URL != '' || secrets.PLATFORM_API_URL != '' }}
+    # `secrets` context is NOT allowed in a job-level `if` (it fails the whole
+    # workflow file to parse — which silently killed every run, incl. build-ui).
+    # Gate on a repo VARIABLE instead; set `PLATFORM_API_URL` as a repo var to
+    # enable CI wheel-deploy. (A tailnet-only box is unreachable from a
+    # GitHub-hosted runner anyway — leave the var unset there and deploy via the
+    # `aiplatform deploy` CLI from a tailnet machine.) The env below still reads
+    # the secret as a fallback for the value itself.
+    if: ${{ vars.PLATFORM_API_URL != '' }}
     steps:
       - name: Checkout math-app
         uses: actions/checkout@v4
 
-      - name: Checkout ai-platform (sibling)
+      - name: Checkout ai-platform
         uses: actions/checkout@v4
         with:
           repository: sepoul/ai-platform
-          path: ../ai-platform
+          # Must be inside $GITHUB_WORKSPACE — `../ai-platform` is rejected.
+          path: ai-platform
           fetch-depth: 1
 
       - name: Set up Python
@@ -41,7 +49,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Install aiplatform-core (for `aiplatform deploy` CLI)
-        run: uv pip install --system -e ../ai-platform/packages/core
+        run: uv pip install --system -e ai-platform/packages/core
 
       - name: Install math packages (so deploy can introspect them)
         run: |
