@@ -1,12 +1,15 @@
-# Build the math-qa + math-conversation wheels, push them to the
-# running ai-platform via `aiplatform deploy`, then build + push the
-# math-ui image.
+# CI is PUBLISH-ONLY: it builds + pushes the math-ui image to GHCR. It does
+# NOT deploy. A GitHub-hosted runner isn't on the tailnet and can't reach the
+# box, so deploy is operator-driven from a tailnet machine / the box:
+#   - pull images:     infra/hetzner/scripts/redeploy.sh   (on the box)
+#   - register wheels: aiplatform deploy --bundle <pkg>/bundle.toml \
+#                        --api-url http://mathapp-prod:8000  (from the tailnet)
 #
-# Required secrets / vars:
-#   secrets.PLATFORM_API_URL   the deployment-target API base URL
-#   secrets.GITHUB_TOKEN       (default) — for ghcr.io login
+#   secrets.GITHUB_TOKEN  (default) — ghcr.io login. The ghcr.io/sepoul/math-ui
+#                         package must grant this repo (sepoul/math-app) write
+#                         access, or the push is denied.
 
-name: Deploy math-app
+name: Publish math-app images
 
 on:
   push:
@@ -18,66 +21,6 @@ permissions:
   packages: write
 
 jobs:
-  deploy-wheels:
-    runs-on: ubuntu-latest
-    # `secrets` context is NOT allowed in a job-level `if` (it fails the whole
-    # workflow file to parse — which silently killed every run, incl. build-ui).
-    # Gate on a repo VARIABLE instead; set `PLATFORM_API_URL` as a repo var to
-    # enable CI wheel-deploy. (A tailnet-only box is unreachable from a
-    # GitHub-hosted runner anyway — leave the var unset there and deploy via the
-    # `aiplatform deploy` CLI from a tailnet machine.) The env below still reads
-    # the secret as a fallback for the value itself.
-    if: ${{ vars.PLATFORM_API_URL != '' }}
-    steps:
-      - name: Checkout math-app
-        uses: actions/checkout@v4
-
-      - name: Checkout ai-platform
-        uses: actions/checkout@v4
-        with:
-          repository: sepoul/ai-platform
-          # Must be inside $GITHUB_WORKSPACE — `../ai-platform` is rejected.
-          path: ai-platform
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
-      - name: Install aiplatform-core (for `aiplatform deploy` CLI)
-        run: uv pip install --system -e ai-platform/packages/core
-
-      - name: Install math packages (so deploy can introspect them)
-        run: |
-          uv pip install --system -e packages/math-qa
-          uv pip install --system -e packages/math-conversation
-          uv pip install --system -e packages/math-notes
-
-      - name: Build wheels
-        run: |
-          uv build --wheel packages/math-qa
-          uv build --wheel packages/math-conversation
-          uv build --wheel packages/math-notes
-
-      - name: Deploy math-qa bundle
-        env:
-          PLATFORM_API_URL: ${{ vars.PLATFORM_API_URL || secrets.PLATFORM_API_URL }}
-        run: aiplatform deploy --bundle packages/math-qa/bundle.toml --api-url "$PLATFORM_API_URL"
-
-      - name: Deploy math-conversation bundle
-        env:
-          PLATFORM_API_URL: ${{ vars.PLATFORM_API_URL || secrets.PLATFORM_API_URL }}
-        run: aiplatform deploy --bundle packages/math-conversation/bundle.toml --api-url "$PLATFORM_API_URL"
-
-      - name: Deploy math-notes bundle
-        env:
-          PLATFORM_API_URL: ${{ vars.PLATFORM_API_URL || secrets.PLATFORM_API_URL }}
-        run: aiplatform deploy --bundle packages/math-notes/bundle.toml --api-url "$PLATFORM_API_URL"
-
   build-ui:
     runs-on: ubuntu-latest
     steps:
@@ -105,9 +48,8 @@ jobs:
         id: sha
         run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      # Build context is the workflow workspace, which now has the
-      # sibling layout the Dockerfile expects:
-      #   ./math-app/math-ui/  + ./ai-platform/sdk-ts/
+      # Build context is the workflow workspace, which has the sibling layout
+      # the Dockerfile expects: ./math-app/math-ui/ + ./ai-platform/sdk-ts/
       - uses: docker/build-push-action@v6
         with:
           context: .
