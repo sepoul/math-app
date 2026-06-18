@@ -1,7 +1,7 @@
 [project]
 name = "mathai-math-notes"
-version = "0.1.2"
-description = "math_notes domain — daily-notes ingest. A learner uploads a voice note (+ optional notebook photos) via POST /media; this job transcribes the audio (OpenAI, via the platform's AudioInterpreter over a PlatformSession) and persists a storage_ref-backed DailyNoteArtifact carrying the transcript. Ships in the `default` worker runtime. OCR over the photos / topic-linking are later additions."
+version = "0.1.5"
+description = "math_notes domain — daily-notes ingest. A learner uploads a voice note (+ optional notebook photos) via POST /media; this job transcribes the audio (OpenAI, via the platform's AudioInterpreter over a PlatformSession) and vision-parses each photo (ImageInterpreter) into a NotePageArtifact, persisting a storage_ref-backed DailyNoteArtifact carrying the transcript + combined ocr_text. Ships in the `default` worker runtime. Topic-linking across notes is a later addition."
 requires-python = ">=3.13"
 
 # Control-plane-only deps. The control module (`mathai.math_notes.control`)

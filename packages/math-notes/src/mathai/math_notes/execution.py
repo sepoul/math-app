@@ -1,10 +1,14 @@
 """math_notes execution plane — transcription graph + persistence.
 
-Imports `pydantic_graph` (light) and the platform's audio provider helper. No
-domain AI dependency: the `openai` SDK ships in the worker base and
-`AudioInterpreter` reads the uploaded blob over a `PlatformSession` (the public
-client), so this domain's `[execution]` extra stays empty. The worker imports
-this after the catalog install pass.
+Imports `pydantic_graph` (light) and the platform's media provider helpers. No
+domain AI dependency: the `openai` SDK ships in the worker base and the
+`AudioInterpreter` / `ImageInterpreter` read the uploaded blobs over a
+`PlatformSession` (the public client), so this domain's `[execution]` extra
+stays empty. The worker imports this after the catalog install pass.
+
+`ImageInterpreter` is imported defensively: the vision helper may not be
+deployed in the worker base yet, so its absence must not break the audio
+ingest — `ParsePagesStep` no-ops while `image_interpreter` is `None`.
 """
 from __future__ import annotations
 
@@ -21,7 +25,11 @@ from ai_platform.jobs.execution_policy import (
 )
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
 from ai_platform.session.session import PlatformSession
-from mathai.math_notes.artifacts import MATH_NOTES_ARTIFACTS, DailyNoteArtifact
+from mathai.math_notes.artifacts import (
+    MATH_NOTES_ARTIFACTS,
+    DailyNoteArtifact,
+    NotePageArtifact,
+)
 from mathai.math_notes.state import MathNotesState
 from mathai.math_notes.workflow import (
     MathNotesWorkflowDependencies,
@@ -29,6 +37,11 @@ from mathai.math_notes.workflow import (
     math_notes_graph,
     math_notes_node_registry,
 )
+
+try:  # the vision helper may not be deployed in the worker base yet
+    from ai_platform.ai.providers.vision import ImageInterpreter
+except ImportError:  # pragma: no cover - until vision.py ships
+    ImageInterpreter = None  # type: ignore[assignment, misc]
 
 
 # No human gates — ingest runs straight to completion.
@@ -40,10 +53,13 @@ _PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://localhost:8000")
 
 
 def build_math_notes_execution(artifact_api: ArtifactService) -> JobExecution:
-    # One session + interpreter per worker process. PlatformSession's httpx
+    # One session + interpreters per worker process. PlatformSession's httpx
     # client is lazy, so building it at registration (before the API is
-    # necessarily reachable) is safe — the first call happens at job run.
-    interpreter = AudioInterpreter(PlatformSession.connect(_PLATFORM_API_URL))
+    # necessarily reachable) is safe — the first call happens at job run. Both
+    # interpreters share the one session.
+    session = PlatformSession.connect(_PLATFORM_API_URL)
+    interpreter = AudioInterpreter(session)
+    image_interpreter = ImageInterpreter(session) if ImageInterpreter is not None else None
 
     def _deps_factory(payload: dict) -> MathNotesWorkflowDependencies:
         job_id = payload.get("_job_id")
@@ -57,23 +73,42 @@ def build_math_notes_execution(artifact_api: ArtifactService) -> JobExecution:
             note_date=note_date.isoformat() if hasattr(note_date, "isoformat") else note_date,
             created_by=payload.get("created_by"),
             interpreter=interpreter,
+            image_interpreter=image_interpreter,
             logger=logger,
         )
 
     def _persist(job_id: str, state: MathNotesState) -> list[UUID]:
-        """Mint the DailyNoteArtifact once the note is transcribed + recorded."""
+        """Mint the DailyNoteArtifact (+ a NotePageArtifact per parsed photo)."""
         if state.audio_ref is None or state.note_date is None:
             return []
-        artifact = DailyNoteArtifact(
+        note = DailyNoteArtifact(
             note_date=state.note_date,
             created_by=state.created_by,
             created_by_job=job_id,
             storage_ref=state.audio_ref,
             image_refs=state.image_refs,
             transcript=state.transcript,
+            ocr_text=state.ocr_text,
         )
-        artifact_api.put(artifact)
-        return [artifact.artifact_id]
+        artifact_api.put(note)
+        ids: list[UUID] = [note.artifact_id]
+        for page in state.pages:
+            page_artifact = NotePageArtifact(
+                note_date=state.note_date,
+                created_by=state.created_by,
+                created_by_job=job_id,
+                source_note_id=note.artifact_id,
+                storage_ref=page.image_ref,
+                image_ref=page.image_ref,
+                page_index=page.page_index,
+                text=page.text,
+                latex=page.latex,
+                diagram_description=page.diagram_description,
+                concepts=page.concepts,
+            )
+            artifact_api.put(page_artifact)
+            ids.append(page_artifact.artifact_id)
+        return ids
 
     return JobExecution(
         name="math_notes",

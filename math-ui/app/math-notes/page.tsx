@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, Mic, RefreshCw, Square, X } from "lucide-react";
-import { PageContainer, PageHeader, Section, EmptyCard, ErrorCard } from "@/components/library";
+import { PageContainer, PageHeader, Section, EmptyCard, ErrorCard, Latex } from "@/components/library";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   fetchArtifacts,
   fetchArtifact,
@@ -15,6 +16,7 @@ import {
   mediaSrc,
   mediaRefUrl,
   type DailyNoteArtifact,
+  type NotePageArtifact,
 } from "@/lib/domains/math-notes";
 
 // Single-learner MVP — `created_by` is stamped but not yet filtered on
@@ -70,6 +72,7 @@ export default function MathNotesPage() {
 
   // --- gallery ---
   const [notes, setNotes] = useState<DailyNoteArtifact[]>([]);
+  const [pagesByNote, setPagesByNote] = useState<Record<string, NotePageArtifact[]>>({});
   const [loadingNotes, setLoadingNotes] = useState(true);
   const [notesError, setNotesError] = useState<string | null>(null);
 
@@ -97,6 +100,23 @@ export default function MathNotesPage() {
       );
       full.sort((a, b) => (a.note_date < b.note_date ? 1 : -1));
       setNotes(full);
+
+      // Parsed pages (vision OCR + KaTeX-validated LaTeX) are separate
+      // `note_page` artifacts linked by `source_note_id`. The list endpoint
+      // returns summaries only, so fetch each by id for concepts/latex/text.
+      const pageList = await fetchArtifacts({ artifactType: "note_page", limit: 200 });
+      const pageSummaries = pageList.artifacts.filter((a) => a.artifact_type === "note_page");
+      const fullPages = await Promise.all(
+        pageSummaries.map((s) => fetchArtifact(s.artifact_id) as Promise<NotePageArtifact>)
+      );
+      const byNote: Record<string, NotePageArtifact[]> = {};
+      for (const p of fullPages) {
+        (byNote[p.source_note_id] ??= []).push(p);
+      }
+      for (const group of Object.values(byNote)) {
+        group.sort((a, b) => a.page_index - b.page_index);
+      }
+      setPagesByNote(byNote);
     } catch (e) {
       setNotesError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -362,6 +382,35 @@ export default function MathNotesPage() {
                     ))}
                   </div>
                 )}
+
+                {(pagesByNote[note.artifact_id] ?? []).map((page) => (
+                  <div
+                    key={page.artifact_id}
+                    className="mt-2 space-y-2 rounded-xl border border-border bg-muted/30 p-3"
+                  >
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Parsed page {page.page_index + 1}
+                    </div>
+                    {page.concepts && page.concepts.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {page.concepts.map((c: string) => (
+                          <Badge key={c} variant="secondary">{c}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    {page.latex && (
+                      <div className="overflow-x-auto rounded-md border border-border bg-background px-3 py-2">
+                        <Latex className="text-sm">{page.latex}</Latex>
+                      </div>
+                    )}
+                    {page.text && (
+                      <details className="text-sm text-muted-foreground">
+                        <summary className="cursor-pointer select-none">Transcription</summary>
+                        <p className="mt-1 whitespace-pre-wrap">{page.text}</p>
+                      </details>
+                    )}
+                  </div>
+                ))}
               </li>
             ))}
           </ul>

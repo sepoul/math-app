@@ -28,5 +28,16 @@ export type DailyNoteArtifact = Required_<
   "artifact_id" | "created_at" | "note_date"
 >;
 
+/**
+ * A vision-parsed notebook page, minted per photo alongside its note.
+ * `latex` (when present) is KaTeX-validated; `source_note_id` links it
+ * back to the parent `DailyNoteArtifact`. Full fields (concepts/latex/
+ * text) are only present on `GET /artifacts/{id}`, not the list summary.
+ */
+export type NotePageArtifact = Required_<
+  S["NotePageArtifact"],
+  "artifact_id" | "created_at" | "source_note_id" | "page_index"
+>;
+
 /** Response of `POST /media`. */
 export type MediaRef = S["MediaRef"];
