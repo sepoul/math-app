@@ -6,8 +6,7 @@ import { PageContainer, PageHeader, Section, EmptyCard, ErrorCard, Latex } from 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  fetchArtifacts,
-  fetchArtifact,
+  fetchArtifactsFull,
   jobsClient,
   TERMINAL_JOB_STATUSES,
 } from "@/lib/platform";
@@ -91,32 +90,29 @@ export default function MathNotesPage() {
     setLoadingNotes(true);
     setNotesError(null);
     try {
-      const list = await fetchArtifacts({ artifactType: "daily_note", limit: 100 });
-      const summaries = list.artifacts.filter((a) => a.artifact_type === "daily_note");
-      // List endpoint returns summaries (no storage_url/transcript); fetch
-      // each by id for the hydrated audio URL + transcript + image refs.
-      const full = await Promise.all(
-        summaries.map((s) => fetchArtifact(s.artifact_id) as Promise<DailyNoteArtifact>)
-      );
+      // PR-3a: one request returns full daily_notes (storage_url/transcript
+      // inline) — no per-id N+1.
+      const notesResp = await fetchArtifactsFull({ artifactType: "daily_note", limit: 100 });
+      const full = notesResp.artifacts as unknown as DailyNoteArtifact[];
       full.sort((a, b) => (a.note_date < b.note_date ? 1 : -1));
       setNotes(full);
 
-      // Parsed pages (vision OCR + KaTeX-validated LaTeX) are separate
-      // `note_page` artifacts linked by `source_note_id`. The list endpoint
-      // returns summaries only, so fetch each by id for concepts/latex/text.
-      const pageList = await fetchArtifacts({ artifactType: "note_page", limit: 200 });
-      const pageSummaries = pageList.artifacts.filter((a) => a.artifact_type === "note_page");
-      const fullPages = await Promise.all(
-        pageSummaries.map((s) => fetchArtifact(s.artifact_id) as Promise<NotePageArtifact>)
+      // PR-3a + PR-3b: per note, one server-side-filtered full request for its
+      // parsed pages — scoped by the `source_note_id` FK, full payload
+      // (concepts/latex/text). No corpus-wide scan, no client-side grouping.
+      const pageEntries = await Promise.all(
+        full.map(async (note) => {
+          const resp = await fetchArtifactsFull({
+            artifactType: "note_page",
+            source_note_id: note.artifact_id,
+          });
+          const pages = (resp.artifacts as unknown as NotePageArtifact[]).sort(
+            (a, b) => a.page_index - b.page_index
+          );
+          return [note.artifact_id, pages] as const;
+        })
       );
-      const byNote: Record<string, NotePageArtifact[]> = {};
-      for (const p of fullPages) {
-        (byNote[p.source_note_id] ??= []).push(p);
-      }
-      for (const group of Object.values(byNote)) {
-        group.sort((a, b) => a.page_index - b.page_index);
-      }
-      setPagesByNote(byNote);
+      setPagesByNote(Object.fromEntries(pageEntries));
     } catch (e) {
       setNotesError(e instanceof Error ? e.message : String(e));
     } finally {

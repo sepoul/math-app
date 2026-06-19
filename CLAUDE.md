@@ -146,40 +146,30 @@ docker restart ai-platform-worker-1              # load the new default-runtime 
 # verify: /job-definitions, /artifact-types show the new version
 ```
 
-## math-ui + the typed SDK (the gotcha that *will* bite you)
+## math-ui + the typed SDK
 
-The UI consumes typed shapes from `@aiplatform/sdk` — `components["schemas"]`
-(e.g. `S["NotePageArtifact"]`). That SDK lives in **`../ai-platform/sdk-ts`**
-and is regenerated *there*, not from math-app:
+The UI consumes typed shapes from the SDK — `components["schemas"]` (e.g.
+`S["NotePageArtifact"]`). The SDK is a **published npm package,
+`@sepoul-packages/sdk`** (public npmjs, no auth), generated + released by
+`../ai-platform` from its OpenAPI. math-app just depends on it like any
+package:
 
-- regen schema: `OPENAPI_SOURCE=http://localhost:8000/openapi.json npm --prefix
-  ../ai-platform/sdk-ts run gen:api` (writes `src/schema.d.ts` from `/openapi.json`).
-- build dist: `npm --prefix ../ai-platform/sdk-ts run build` (= `tsc && cp
-  src/schema.d.ts dist/schema.d.ts`). The UI's `predev`/`prebuild` run this via
-  `sdk:build`.
+- `package.json`: `"@sepoul-packages/sdk": "^0.1.1"`.
+- New schema/types after the platform ships a version: `npm --prefix math-ui
+  update @sepoul-packages/sdk` (new versions release on `sdk-v*` tags).
+- The PR-3 read path is first-class on the SDK's `PlatformSession`:
+  `listArtifacts(opts)` (envelope + `offset` + `fields` domain filters),
+  `listArtifactsFull(opts)` (full typed artifacts inline), `batchGetArtifacts(ids)`.
+  `math-ui/lib/platform/artifacts-client.ts` wraps these (`fetchArtifacts` /
+  `fetchArtifactsFull` / `batchGetArtifacts`).
 
-**The trap:** `math-ui` depends on the SDK as **`file:../../ai-platform/sdk-ts`**,
-which npm **copies into `math-ui/node_modules/@aiplatform/sdk` (NOT a symlink).**
-So regenerating *and* rebuilding the source SDK does **not** update the copy the
-UI's `tsc`/Next actually resolves. Symptom:
-
-```
-types.ts: Property 'NotePageArtifact' does not exist on type '{ ...schemas... }'
-```
-
-…even though `../ai-platform/sdk-ts/src/schema.d.ts` clearly has it. It's a
-**compile-time** lie only — at runtime the UI gets data from the API regardless
-(the schema is types-only).
-
-**Fix:** re-sync the install after any SDK regen/build:
-```bash
-# option A (proper): re-copy the file: dep
-npm --prefix math-ui install
-# option B (surgical, local-dev): sync the built dist into the copy
-cp -R ../ai-platform/sdk-ts/dist/. math-ui/node_modules/@aiplatform/sdk/dist/
-```
-Then `npx --prefix math-ui tsc --noEmit` should go green. (You do **not** regen
-the SDK from math-app — that's `../ai-platform`'s job; you only re-sync the copy.)
+**History (don't recreate it):** the SDK used to be a local
+`file:../../ai-platform/sdk-ts` dep that npm *copied* (not symlinked) into
+`node_modules`, so regenerating the source didn't update the copy the UI
+resolved → phantom `Property 'X' does not exist on type { …schemas… }` errors,
+and a broken SDK `tsc` could even block `npm run dev` (it ran `sdk:build` in
+`predev`). All of that is gone with the npm package — no `predev`/`sdk:build`
+hooks, no `.npmrc install-links` workaround.
 
 **Related local-dev fact:** the `validate_latex` / `validate_figure` agent tools
 (used by `math_qa`, and now `math_notes`' page parse) POST to the **math-ui

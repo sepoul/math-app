@@ -3,16 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sdk:build": "npm --prefix ../../ai-platform/sdk-ts run build",
-    "predev": "npm run sdk:build",
-    "prebuild": "npm run sdk:build",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "@aiplatform/sdk": "file:../../ai-platform/sdk-ts",
+    "@sepoul-packages/sdk": "^0.1.1",
     "@base-ui/react": "^1.3.0",
     "@types/katex": "^0.16.8",
     "class-variance-authority": "^0.7.1",

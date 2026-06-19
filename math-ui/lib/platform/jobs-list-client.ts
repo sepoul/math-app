@@ -1,5 +1,5 @@
 /**
- * Thin wrapper over `@aiplatform/sdk`'s `PlatformSession`.
+ * Thin wrapper over `@sepoul-packages/sdk`'s `PlatformSession`.
  *
  * Math-ui's local `JobStatusResponse` tightens optional fields to
  * required nullables; the SDK returns the raw shape. The cast is

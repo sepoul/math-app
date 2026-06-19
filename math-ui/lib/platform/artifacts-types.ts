@@ -1,5 +1,5 @@
 /**
- * Platform-level artifact types — re-exported from `@aiplatform/sdk`.
+ * Platform-level artifact types — re-exported from `@sepoul-packages/sdk`.
  *
  * `Artifact` is the discriminated union over every artifact variant
  * any registered domain produces. Narrow on `artifact_type` to access
@@ -10,6 +10,7 @@ export type {
   ArtifactType,
   ArtifactSummary,
   ArtifactListResponse,
+  FullArtifactListResponse,
   ArtifactTypeSpec,
   ArtifactTypeListResponse,
-} from "@aiplatform/sdk";
+} from "@sepoul-packages/sdk";

@@ -1,5 +1,5 @@
 /**
- * Workflow types — re-exported from `@aiplatform/sdk`, plus a few
+ * Workflow types — re-exported from `@sepoul-packages/sdk`, plus a few
  * UI-only types for resolved runtime state used by workflow-graph.
  */
 export type {
@@ -10,8 +10,8 @@ export type {
   WorkflowSpecResponse,
   WorkflowListItem,
   WorkflowListResponse,
-} from "@aiplatform/sdk";
-import type { StageResponse } from "@aiplatform/sdk";
+} from "@sepoul-packages/sdk";
+import type { StageResponse } from "@sepoul-packages/sdk";
 
 // Job type identifiers come from the backend registry (`GET /workflows`).
 // Kept as `string` rather than a literal union — the backend is the

@@ -2,10 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Transpile the in-repo @aiplatform/sdk — it ships compiled JS in
-  // dist/, but Next 16 still needs explicit opt-in for file: deps so
-  // the typed module resolution kicks in.
-  transpilePackages: ["@aiplatform/sdk"],
+  // The SDK ships compiled JS in dist/; transpiling it through Next keeps
+  // module/type resolution consistent across Turbopack + the build.
+  transpilePackages: ["@sepoul-packages/sdk"],
 };
 
 export default nextConfig;

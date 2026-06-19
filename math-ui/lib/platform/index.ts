@@ -48,12 +48,14 @@ export { jobsClient } from "./jobs-client";
 export { fetchWorkflowSpec, fetchWorkflows } from "./workflows-client";
 export {
   fetchArtifacts,
+  fetchArtifactsFull,
+  batchGetArtifacts,
   fetchArtifact,
   fetchArtifactTypes,
 } from "./artifacts-client";
 export { fetchJobs } from "./jobs-list-client";
 export type { ListJobsParams } from "./jobs-list-client";
-export type { ListArtifactsParams } from "./artifacts-client";
+export type { ListArtifactsParams, FullArtifactListResponse } from "./artifacts-client";
 
 // Workflow rendering primitives
 export {

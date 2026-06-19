@@ -1,6 +1,6 @@
 /**
  * BFF proxy — forwards every `/api/*` request to the upstream platform
- * API. Implementation lives in `@aiplatform/sdk` so math-ui and
+ * API. Implementation lives in `@sepoul-packages/sdk` so math-ui and
  * platform-ui share the exact same code path.
  *
  * The upstream URL is resolved per-request from `MATH_API_URL` via the
@@ -11,7 +11,7 @@
  * route handler (more specific Next routes win), since it sets
  * dynamic + nodejs runtime + drops compression for immediate flush.
  */
-import { createBffMethods } from "@aiplatform/sdk";
+import { createBffMethods } from "@sepoul-packages/sdk";
 
 export const { GET, POST, PUT, DELETE, PATCH } = createBffMethods({
   upstreamUrl: () => {

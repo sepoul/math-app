@@ -6,7 +6,7 @@
  * Server-side code (e.g. a future server component) can call
  * `serverSession()` to skip the BFF and hit the upstream directly.
  */
-import { PlatformSession } from "@aiplatform/sdk";
+import { PlatformSession } from "@sepoul-packages/sdk";
 
 let _browser: PlatformSession | null = null;
 

@@ -1,5 +1,5 @@
 /**
- * Thin wrapper over `@aiplatform/sdk`'s `PlatformSession`.
+ * Thin wrapper over `@sepoul-packages/sdk`'s `PlatformSession`.
  */
 import { platformSession } from "@/lib/session";
 import type {

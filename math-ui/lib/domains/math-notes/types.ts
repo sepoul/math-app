@@ -14,7 +14,7 @@
  * these as missing. That's the intended order — build the contract,
  * then the types light up.
  */
-import type { components } from "@aiplatform/sdk";
+import type { components } from "@sepoul-packages/sdk";
 
 type S = components["schemas"];
 

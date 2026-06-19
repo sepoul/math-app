@@ -1,5 +1,5 @@
 /**
- * Platform job-lifecycle types — re-exported from `@aiplatform/sdk`
+ * Platform job-lifecycle types — re-exported from `@sepoul-packages/sdk`
  * with math-ui's tightening of pydantic-optional fields applied.
  *
  * No domain-specific shapes leak into this file: `JobStatusResponse.result`
@@ -12,7 +12,7 @@ import type {
   JobStatusResponse as SdkJobStatusResponse,
   RunSubmitResponse as SdkRunSubmitResponse,
   UserComment as SdkUserComment,
-} from "@aiplatform/sdk";
+} from "@sepoul-packages/sdk";
 
 // Pydantic-optional fields with defaults are always present at runtime;
 // tighten them so consumers don't need ?? fallbacks.

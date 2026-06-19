@@ -1,9 +1,9 @@
 /**
- * Thin wrapper over `@aiplatform/sdk`'s `PlatformSession`. Keeps the
+ * Thin wrapper over `@sepoul-packages/sdk`'s `PlatformSession`. Keeps the
  * existing `jobsClient.submit/getStatus/getResult/submitReview` call
  * sites in math-ui untouched while the underlying client is the SDK.
  */
-import type { UserComment } from "@aiplatform/sdk";
+import type { UserComment } from "@sepoul-packages/sdk";
 import { platformSession } from "@/lib/session";
 import type {
   JobStatusResponse,
