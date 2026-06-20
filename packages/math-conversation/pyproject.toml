@@ -10,7 +10,7 @@ requires-python = ">=3.13"
 # top). The platform's `aiplatform-core` covers everything control-side
 # needs.
 dependencies = [
-    "aiplatform-core",
+    "aiplatform-core>=0.1.1",
 ]
 
 [project.optional-dependencies]
@@ -32,7 +32,3 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = true
-
-[tool.uv.sources]
-# See math-qa/pyproject.toml for the same rationale.
-aiplatform-core = { git = "https://github.com/sepoul/ai-platform.git", subdirectory = "packages/core" }
