@@ -9,7 +9,7 @@ requires-python = ">=3.13"
 # it must stay engine-free, so we don't pull pydantic_ai / pydantic_graph
 # here. The platform's `aiplatform-core` covers everything control-side needs.
 dependencies = [
-    "aiplatform-core",
+    "aiplatform-core>=0.1.1",
 ]
 
 [project.optional-dependencies]
@@ -30,10 +30,3 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = true
-
-[tool.uv.sources]
-# `aiplatform-core` lives in the ai-platform repo. CI installs it from
-# the upstream git URL (see .github/workflows/deploy.yml). Local-dev
-# can either install it from a sibling checkout (preferred) or from
-# the same git URL. Set MATHAPP_AIPLATFORM_PATH to use a local source.
-aiplatform-core = { git = "https://github.com/sepoul/ai-platform.git", subdirectory = "packages/core" }

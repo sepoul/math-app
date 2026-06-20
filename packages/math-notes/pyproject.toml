@@ -10,7 +10,7 @@ requires-python = ">=3.13"
 # don't pull any LLM / vision stack here. `aiplatform-core` covers everything
 # control-side needs.
 dependencies = [
-    "aiplatform-core",
+    "aiplatform-core>=0.1.1",
 ]
 
 [project.optional-dependencies]
@@ -28,11 +28,3 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = true
-
-[tool.uv.sources]
-# `aiplatform-core` lives in the ai-platform repo. CI installs it from the
-# upstream git URL (see .github/workflows/deploy.yml). For local dev, install
-# this package into the venv that has the `aiplatform` CLI with
-# `pip install -e packages/math-notes --no-deps` (aiplatform-core is already
-# there), or set MATHAPP_AIPLATFORM_PATH to a local checkout.
-aiplatform-core = { git = "https://github.com/sepoul/ai-platform.git", subdirectory = "packages/core" }
