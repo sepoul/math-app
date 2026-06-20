@@ -20,3 +20,10 @@ wheel   = "dist/mathai_math_qa-0.1.0-py3-none-any.whl"
 domain               = "math_qa"
 control_entrypoint   = "mathai.math_qa.control:register_control"
 execution_entrypoint = "mathai.math_qa.execution:register_execution"
+
+# Domain-owned prompts (instructions). Deploy with:
+#   aiplatform deploy-prompts --bundle packages/math-qa/bundle.toml \
+#                             --api-url http://your-platform:8000
+[prompts]
+dir    = "instructions"
+domain = "math_qa"
