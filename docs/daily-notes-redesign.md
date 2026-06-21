@@ -198,7 +198,8 @@ Robustness / "keep tracking it":
   `LocalArtifactRepository` fixture (old daily_note + note_page → migrated doc).
 
 ## Out of scope (tracked separately)
-- iPhone ~3MB photo upload usability bug → memory `daily-notes-image-upload-bug`
-  (client-side downscale before upload). Not part of this change.
+- iPhone ~3MB photo upload usability bug → see
+  `docs/daily-notes-image-upload-bug.md` (client-side downscale before upload).
+  Tracked separately from this change.
 - Exact Opus model id / cost for the synthesis agent: load the `claude-api`
   skill before wiring `basic_agent`, so the model + cost are accurate.
