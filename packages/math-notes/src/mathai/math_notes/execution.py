@@ -13,6 +13,7 @@ ingest — `ParsePagesStep` no-ops while `image_interpreter` is `None`.
 from __future__ import annotations
 
 import os
+from typing import Optional
 from uuid import UUID
 
 from ai_platform.ai.providers.audio import AudioInterpreter
@@ -25,6 +26,7 @@ from ai_platform.jobs.execution_policy import (
 )
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
 from ai_platform.session.session import PlatformSession
+from ai_platform.workspace.client import PlatformClient
 from mathai.math_notes.artifacts import (
     MATH_NOTES_ARTIFACTS,
     DailyNoteArtifact,
@@ -52,7 +54,10 @@ math_notes_policy = ExecutionPolicy(gates=[])
 _PLATFORM_API_URL = os.getenv("PLATFORM_API_URL", "http://localhost:8000")
 
 
-def build_math_notes_execution(artifact_api: ArtifactService) -> JobExecution:
+def build_math_notes_execution(
+    artifact_api: ArtifactService,
+    platform_client: PlatformClient,
+) -> JobExecution:
     # One session + interpreters per worker process. PlatformSession's httpx
     # client is lazy, so building it at registration (before the API is
     # necessarily reachable) is safe — the first call happens at job run. Both
@@ -60,6 +65,19 @@ def build_math_notes_execution(artifact_api: ArtifactService) -> JobExecution:
     session = PlatformSession.connect(_PLATFORM_API_URL)
     interpreter = AudioInterpreter(session)
     image_interpreter = ImageInterpreter(session) if ImageInterpreter is not None else None
+
+    prompt_registry = getattr(platform_client, "prompt_registry", None)
+
+    def _load_prompt(name: str) -> Optional[str]:
+        """Best-effort fetch from the prompt registry; None on miss lets the
+        nodes fall back (generic vision prompt / no-instruction agent) rather
+        than crashing — page parsing is best-effort enrichment."""
+        if prompt_registry is None:
+            return None
+        try:
+            return prompt_registry.get_prompt(name).instructions
+        except Exception:
+            return None
 
     def _deps_factory(payload: dict) -> MathNotesWorkflowDependencies:
         job_id = payload.get("_job_id")
@@ -74,6 +92,8 @@ def build_math_notes_execution(artifact_api: ArtifactService) -> JobExecution:
             created_by=payload.get("created_by"),
             interpreter=interpreter,
             image_interpreter=image_interpreter,
+            page_instructions=_load_prompt("math_notes.page_parse"),
+            latex_instructions=_load_prompt("math_notes.latex_render"),
             logger=logger,
         )
 
@@ -126,6 +146,6 @@ def build_math_notes_execution(artifact_api: ArtifactService) -> JobExecution:
 def register_execution(ctx: BootstrapContext) -> ExecutionDomain:
     return ExecutionDomain(
         name="math_notes",
-        job_executions=[build_math_notes_execution(ctx.artifact_service)],
+        job_executions=[build_math_notes_execution(ctx.artifact_service, ctx.platform_client)],
         artifact_types=list(MATH_NOTES_ARTIFACTS.values()),
     )

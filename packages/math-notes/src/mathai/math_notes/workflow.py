@@ -48,6 +48,16 @@ class MathNotesWorkflowDependencies:
     `PlatformSession`); `image_interpreter` is `None` until the vision helper
     is deployed, in which case page parsing is skipped. `interpreter` is
     `None` only in degenerate/test paths.
+
+    `page_instructions` (the vision JSON-extraction prompt) and
+    `latex_instructions` (the validate_latex agent prompt) are pulled from
+    the platform `PromptRegistry` at submit time (in `deps_factory`) so
+    nodes never carry hardcoded prompt strings — the prompts live as
+    versioned `instructions/*.md` files (deployed via
+    `aiplatform deploy-prompts`). Either is `None` on a registry miss: the
+    vision call then falls back to the platform's generic prompt and the
+    latex agent runs without system instructions — page parsing is
+    best-effort enrichment, so a miss degrades rather than fails.
     """
 
     audio_ref: str = ""
@@ -56,6 +66,8 @@ class MathNotesWorkflowDependencies:
     created_by: Optional[str] = None
     interpreter: Optional["AudioInterpreter"] = None
     image_interpreter: Optional["ImageInterpreter"] = None
+    page_instructions: Optional[str] = None
+    latex_instructions: Optional[str] = None
     logger: WorkerLogger = field(default_factory=NullLogger)
 
 
@@ -100,21 +112,13 @@ class TranscribeNoteStep(
         return ParsePagesStep()
 
 
-# Instruction handed to the generic platform `ImageInterpreter`. The helper
-# returns plain text; we ask it for JSON and parse it here (domain-side), per
-# the §13 boundary — the platform stays unaware of math/LaTeX/concepts.
-_PAGE_PROMPT = (
-    "You are reading a photo of a page of handwritten mathematics study "
-    "notes. Return ONLY a JSON object (no prose, no markdown fences) with "
-    "these keys:\n"
-    '  "text": a faithful plain-text transcription of the page,\n'
-    '  "latex": the mathematical content as LaTeX (empty string if none),\n'
-    '  "diagram_description": a short description of any diagram or figure '
-    "on the page (empty string if none),\n"
-    '  "concepts": an array of the mathematical concepts the page touches '
-    '(e.g. ["tangent space", "smooth atlas"]).\n'
-    "If the page is unreadable, return the object with empty values."
-)
+# The vision JSON-extraction prompt handed to the generic platform
+# `ImageInterpreter` now lives in `instructions/page_parse.md` (prompt
+# `math_notes.page_parse`), loaded from the platform `PromptRegistry` in
+# `execution.py`'s `deps_factory` and threaded in as `page_instructions`.
+# The helper returns plain text; we ask it for JSON and parse it here
+# (domain-side), per the §13 boundary — the platform stays unaware of
+# math/LaTeX/concepts.
 
 
 def _strip_code_fences(text: str) -> str:
@@ -169,9 +173,12 @@ def _compose_ocr_text(pages: list[ParsedPage]) -> Optional[str]:
     return "\n\n".join(chunks) if chunks else None
 
 
-# Instructions for the validate_latex tool loop. Mirrors math_qa's
-# `GenerateLatexStep`: the agent MUST round-trip its LaTeX through the tool
-# (KaTeX in the math-ui server) and only finish once it returns valid.
+# The validate_latex tool-loop prompt now lives in
+# `instructions/latex_render.md` (prompt `math_notes.latex_render`), loaded
+# from the platform `PromptRegistry` and threaded in as `latex_instructions`.
+# Mirrors math_qa's `GenerateLatexStep`: the agent MUST round-trip its LaTeX
+# through the tool (KaTeX in the math-ui server) and only finish once it
+# returns valid.
 class _PageLatex(BaseModel):
     """Agent output: KaTeX-validated LaTeX for one page's math."""
 
@@ -183,20 +190,9 @@ class _PageLatex(BaseModel):
     )
 
 
-_LATEX_INSTRUCTIONS = (
-    "You are given the mathematical content of one page of handwritten study "
-    "notes — possibly as unicode math symbols or rough LaTeX. Produce a single "
-    "KaTeX-compilable LaTeX representation of the math on the page (use "
-    "\\(...\\) / \\[...\\] delimiters around each expression). You MUST call "
-    "the `validate_latex` tool and only finish once it returns valid=true; if "
-    "it returns an error, fix the offending LaTeX and call it again. Put the "
-    "validated LaTeX in `latex_source` and the number of validate_latex calls "
-    "in `validation_attempts`. If the page has no real mathematical content, "
-    "return an empty `latex_source`."
-)
-
-
-async def _validated_latex(page: ParsedPage, log) -> tuple[Optional[str], int]:
+async def _validated_latex(
+    page: ParsedPage, log, instructions: Optional[str]
+) -> tuple[Optional[str], int]:
     """Return KaTeX-validated LaTeX for `page` (or `None`), via a
     `validate_latex` tool loop — never a guess.
 
@@ -221,7 +217,7 @@ async def _validated_latex(page: ParsedPage, log) -> tuple[Optional[str], int]:
 
         agent = basic_agent(
             output_type=_PageLatex,
-            instructions=_LATEX_INSTRUCTIONS,
+            instructions=instructions,
             tools=[Tool(validate_latex)],
             retries=2,
         )
@@ -261,9 +257,14 @@ class ParsePagesStep(
 
         await log.info(f"parsing {len(refs)} page(s)")
 
+        # Registry-loaded prompts (None on a miss); captured once for the
+        # per-page closures below.
+        page_prompt = ctx.deps.page_instructions
+        latex_instructions = ctx.deps.latex_instructions
+
         def _parse(image_ref: str, page_index: int) -> ParsedPage:
             # Blocking (HTTP download + vision call); runs in a worker thread.
-            result = interpreter.interpret(image_ref, prompt=_PAGE_PROMPT)
+            result = interpreter.interpret(image_ref, prompt=page_prompt)
             return _coerce_page(result.text, image_ref, page_index)
 
         async def _process(image_ref: str, page_index: int) -> ParsedPage:
@@ -271,7 +272,7 @@ class ParsePagesStep(
             # Replace the vision model's raw LaTeX with KaTeX-validated LaTeX
             # (or None) — the math is checked against the math-ui renderer, not
             # trusted blind.
-            page.latex, _attempts = await _validated_latex(page, log)
+            page.latex, _attempts = await _validated_latex(page, log, latex_instructions)
             return page
 
         pages = await asyncio.gather(
