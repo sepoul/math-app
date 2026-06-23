@@ -8,7 +8,7 @@ stays empty. The worker imports this after the catalog install pass.
 
 `ImageInterpreter` is imported defensively: the vision helper may not be
 deployed in the worker base yet, so its absence must not break the audio
-ingest — `ParsePagesStep` no-ops while `image_interpreter` is `None`.
+ingest — `ExtractPagesStep` no-ops while `image_interpreter` is `None`.
 """
 from __future__ import annotations
 
@@ -27,11 +27,7 @@ from ai_platform.jobs.execution_policy import (
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
 from ai_platform.session.session import PlatformSession
 from ai_platform.workspace.client import PlatformClient
-from mathai.math_notes.artifacts import (
-    MATH_NOTES_ARTIFACTS,
-    DailyNoteArtifact,
-    NotePageArtifact,
-)
+from mathai.math_notes.artifacts import MATH_NOTES_ARTIFACTS, DailyNoteArtifact
 from mathai.math_notes.state import MathNotesState
 from mathai.math_notes.workflow import (
     MathNotesWorkflowDependencies,
@@ -71,7 +67,7 @@ def build_math_notes_execution(
     def _load_prompt(name: str) -> Optional[str]:
         """Best-effort fetch from the prompt registry; None on miss lets the
         nodes fall back (generic vision prompt / no-instruction agent) rather
-        than crashing — page parsing is best-effort enrichment."""
+        than crashing — extraction + synthesis are best-effort enrichment."""
         if prompt_registry is None:
             return None
         try:
@@ -93,12 +89,12 @@ def build_math_notes_execution(
             interpreter=interpreter,
             image_interpreter=image_interpreter,
             page_instructions=_load_prompt("math_notes.page_parse"),
-            latex_instructions=_load_prompt("math_notes.latex_render"),
+            synthesis_instructions=_load_prompt("math_notes.synthesis"),
             logger=logger,
         )
 
     def _persist(job_id: str, state: MathNotesState) -> list[UUID]:
-        """Mint the DailyNoteArtifact (+ a NotePageArtifact per parsed photo)."""
+        """Mint the one document `DailyNoteArtifact` (pages embedded inline)."""
         if state.audio_ref is None or state.note_date is None:
             return []
         note = DailyNoteArtifact(
@@ -108,27 +104,12 @@ def build_math_notes_execution(
             storage_ref=state.audio_ref,
             image_refs=state.image_refs,
             transcript=state.transcript,
-            ocr_text=state.ocr_text,
+            pages=state.pages,
+            synthesis=state.synthesis,
+            schema_version=2,
         )
         artifact_api.put(note)
-        ids: list[UUID] = [note.artifact_id]
-        for page in state.pages:
-            page_artifact = NotePageArtifact(
-                note_date=state.note_date,
-                created_by=state.created_by,
-                created_by_job=job_id,
-                source_note_id=note.artifact_id,
-                storage_ref=page.image_ref,
-                image_ref=page.image_ref,
-                page_index=page.page_index,
-                text=page.text,
-                latex=page.latex,
-                diagram_description=page.diagram_description,
-                concepts=page.concepts,
-            )
-            artifact_api.put(page_artifact)
-            ids.append(page_artifact.artifact_id)
-        return ids
+        return [note.artifact_id]
 
     return JobExecution(
         name="math_notes",

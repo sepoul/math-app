@@ -1,18 +1,25 @@
 """Math-notes artifacts — the dated note a learner captures.
 
-`DailyNoteArtifact` is a *blob-backed* artifact: the bytes (a voice note,
-optionally notebook photos) live in the storage plane, uploaded via
-`POST /media`. The artifact carries the audio `storage_ref` (+
-content_type / byte_size, inherited from `BaseArtifact` — PR-1), the
-`transcript` the ingest job produced, optional `image_refs`, plus the
-dated/owner metadata. `GET /artifacts/{id}` hydrates `storage_ref` into a
-`storage_url` the UI renders directly (an `<audio src=…>`).
+`DailyNoteArtifact` is a *blob-backed* document artifact: the bytes (a voice
+note, optionally notebook photos) live in the storage plane, uploaded via
+`POST /media`. One note → one artifact. The artifact carries the audio
+`storage_ref` (+ content_type / byte_size, inherited from `BaseArtifact`),
+the `transcript` the ingest produced, the raw per-photo extraction as nested
+`pages` children, and the note-level `synthesis` (the cleaned-up, coherent
+math). `GET /artifacts/{id}` hydrates `storage_ref` into a `storage_url` the
+UI renders directly (an `<audio src=…>`).
 
-`NotePageArtifact` is the vision parse of one notebook photo (its LaTeX,
-concepts, and any diagram description), minted per `image_ref` alongside
-the note by `ParsePagesStep`. `ParsedPage` is the in-flight shape that
-parse produces on `MathNotesState` before `_persist` turns it into an
-artifact — it is never stored on its own.
+Two phases produce it: faithful **extraction** (audio transcript + per-photo
+raw transcription, no interpretation) then one holistic **synthesis** pass
+(Opus, over the whole note) that reconstructs the intended math — a semantic
+neighbour of the fuzzy notes, not a blind mirror. The raw extraction is kept
+in the `pages` children as evidence; the synthesis is the strong-semantic
+view. See `docs/daily-notes-redesign.md`.
+
+`NotePageArtifact` is the **legacy** per-photo artifact (its own row, linked
+by `source_note_id`). It is no longer minted — the page data now lives inline
+on `DailyNoteArtifact.pages` — but the class stays registered so old rows
+still hydrate and the migration can read them.
 """
 from __future__ import annotations
 
@@ -25,16 +32,68 @@ from pydantic import BaseModel, ConfigDict, Field
 from ai_platform.jobs.artifact import BaseArtifact
 
 
+class NotePage(BaseModel):
+    """Faithful extraction of one notebook photo — a nested child of the note.
+
+    Raw-only by design: `raw_text` is a faithful transcription of what's on
+    the page (no LaTeX, no concepts — those are reconstructed note-level in
+    `NoteSynthesis`). Held on `MathNotesState` in-flight and stored inline on
+    `DailyNoteArtifact.pages`; never an artifact of its own.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    page_index: int = Field(..., ge=0)
+    image_ref: str = Field(..., description="storage_ref of the source photo.")
+    raw_text: Optional[str] = Field(
+        None, description="Faithful plain-text transcription of the page."
+    )
+    diagram_description: Optional[str] = Field(
+        None, description="Description of any diagram/figure on the page."
+    )
+
+
+class NoteSynthesis(BaseModel):
+    """The note-level synthesis — one coherent, always-correct view of the math.
+
+    Produced by the synthesis pass over the transcript + all page extractions.
+    `markdown` is prose with embedded KaTeX-validated LaTeX (document mode);
+    `concepts` and `summary` are note-level. Never reproduces an error the
+    learner made — it reconstructs the intended math silently.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    markdown: Optional[str] = Field(
+        None, description="Prose + embedded KaTeX-validated LaTeX for the whole note."
+    )
+    concepts: List[str] = Field(
+        default_factory=list, description="Mathematical concepts the note touches."
+    )
+    summary: Optional[str] = Field(
+        None, description="A short prose summary of the note."
+    )
+    model_used: Optional[str] = Field(
+        None, description="The model that produced the synthesis."
+    )
+    validation_attempts: int = Field(
+        default=0, ge=0, description="How many validate_latex calls before converging."
+    )
+
+
 class DailyNoteArtifact(BaseArtifact):
-    """One captured study note, tied to a calendar day.
+    """One captured study note, tied to a calendar day — a self-contained document.
 
     `storage_ref` / `content_type` / `byte_size` are inherited from
-    `BaseArtifact` and point at the uploaded **audio** blob. `transcript`
-    is populated by the ingest job's transcription node. `image_refs`
-    holds the notebook photos captured with the note; `ocr_text` is the
-    combined text/LaTeX parsed from them by `ParsePagesStep`, with the
-    per-photo structured detail (LaTeX, concepts, diagrams) living in the
-    sibling `NotePageArtifact`s.
+    `BaseArtifact` and point at the uploaded **audio** blob. `transcript` is
+    the voice-note transcription; `pages` holds the raw per-photo extraction
+    (children); `synthesis` is the cleaned-up note-level math. `image_refs`
+    holds the notebook-photo storage_refs.
+
+    `pages`, `synthesis`, and `schema_version` are additive (optional with
+    defaults) so old rows — written before the redesign — still hydrate under
+    the current class. `schema_version` is the migration's idempotency marker:
+    old rows default to 1; new/migrated documents are 2.
     """
 
     artifact_type: Literal["daily_note"] = "daily_note"
@@ -48,40 +107,36 @@ class DailyNoteArtifact(BaseArtifact):
 
     # Produced by the ingest job's transcription node.
     transcript: Optional[str] = Field(None, description="Transcript of the voice note.")
-    # Combined readable transcription of `image_refs`, filled by ParsePagesStep
-    # (per-photo structured detail lives in the `note_page` artifacts).
+
+    # Raw faithful extraction, one per photo (nested children).
+    pages: list[NotePage] = Field(
+        default_factory=list, description="Raw per-photo extraction (children)."
+    )
+    # The note-level cleaned-up math (the strong-semantic view).
+    synthesis: Optional[NoteSynthesis] = Field(
+        None, description="Note-level synthesised, always-correct math."
+    )
+
+    # Combined readable transcription of `image_refs` (legacy field, kept for
+    # back-compat on old rows; superseded by `pages` + `synthesis`).
     ocr_text: Optional[str] = Field(
-        None, description="Combined text/LaTeX parsed from the note's photos."
+        None, description="Legacy combined text/LaTeX parsed from the note's photos."
+    )
+
+    # Additive idempotency marker: old rows default to 1; migrated/new = 2.
+    schema_version: int = Field(
+        default=1, ge=1, description="Document shape version (1 = pre-redesign)."
     )
 
 
-class ParsedPage(BaseModel):
-    """Structured vision-parse of one notebook photo.
-
-    Held on `MathNotesState` in-flight; `_persist` turns each into a
-    `NotePageArtifact`. Not an artifact itself — never stored or fetched
-    on its own.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    page_index: int = Field(..., ge=0)
-    image_ref: str
-    text: Optional[str] = None
-    latex: Optional[str] = None
-    diagram_description: Optional[str] = None
-    concepts: List[str] = Field(default_factory=list)
-
-
 class NotePageArtifact(BaseArtifact):
-    """A parsed notebook page — the vision interpretation of one photo.
+    """LEGACY per-photo artifact — no longer minted, kept for back-compat.
 
-    Minted per `image_ref` alongside the parent `DailyNoteArtifact`.
-    `storage_ref` points at the photo (so `GET /artifacts/{id}` hydrates a
-    viewable `storage_url`); `source_note_id` links back to the note. The
-    structured fields (`latex`, `concepts`, …) are produced by the domain
-    from the platform's *generic* `ImageInterpreter` text — the
-    math-specific interpretation lives here, domain-side, per §13.
+    Before the document redesign, each photo was minted as its own
+    `note_page` row linked to the parent via `source_note_id`. New ingests
+    embed page data on `DailyNoteArtifact.pages` instead, but this class stays
+    registered so old rows still hydrate on read and the migration
+    (`scripts/migrate_notes_to_document.py`) can query them as its source.
     """
 
     artifact_type: Literal["note_page"] = "note_page"
