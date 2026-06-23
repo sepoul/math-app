@@ -22,22 +22,31 @@ type Required_<T, K extends keyof T> = Omit<T, K> & {
   [P in K]-?: NonNullable<T[P]>;
 };
 
-/** A captured study note. `storage_url` is hydrated by `GET /artifacts/{id}`. */
+/**
+ * A captured study note — now a self-contained document. `pages` holds the
+ * raw per-photo extraction (faithful transcription) and `synthesis` the
+ * cleaned-up, note-level math (markdown + KaTeX-validated LaTeX). Old rows
+ * (pre-redesign, `schema_version` 1) still hydrate, with `synthesis` null and
+ * `pages` empty. `storage_url` is hydrated by `GET /artifacts/{id}`.
+ */
 export type DailyNoteArtifact = Required_<
   S["DailyNoteArtifact"],
   "artifact_id" | "created_at" | "note_date"
 >;
 
 /**
- * A vision-parsed notebook page, minted per photo alongside its note.
- * `latex` (when present) is KaTeX-validated; `source_note_id` links it
- * back to the parent `DailyNoteArtifact`. Full fields (concepts/latex/
- * text) are only present on `GET /artifacts/{id}`, not the list summary.
+ * Faithful raw extraction of one notebook photo, embedded inline on the note
+ * (`DailyNoteArtifact.pages`). Raw-only: `raw_text` is what's on the page; the
+ * math is reconstructed note-level in `synthesis`. Supersedes the legacy
+ * per-photo `note_page` artifact, which is no longer minted.
  */
-export type NotePageArtifact = Required_<
-  S["NotePageArtifact"],
-  "artifact_id" | "created_at" | "source_note_id" | "page_index"
->;
+export type NotePage = S["NotePage"];
+
+/**
+ * The note-level synthesis: a coherent markdown document with embedded
+ * KaTeX-validated LaTeX, plus note-level `concepts` and a `summary`.
+ */
+export type NoteSynthesis = S["NoteSynthesis"];
 
 /** Response of `POST /media`. */
 export type MediaRef = S["MediaRef"];
