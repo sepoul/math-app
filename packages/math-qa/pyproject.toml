@@ -1,6 +1,6 @@
 [project]
 name = "mathai-math-qa"
-version = "0.1.0"
+version = "0.1.1"
 description = "math_qa domain — pydantic_ai-driven Q&A workflow producing typed math artifacts (question, answer, latex, figure). Ships in the `default` worker runtime."
 requires-python = ">=3.13"
 
@@ -20,7 +20,13 @@ dependencies = [
 # they cannot coexist in one interpreter — runtime isolation lives in the
 # package boundary.
 execution = [
-    "pydantic-ai-slim[anthropic,duckduckgo,logfire]>=1.58.0",
+    # Capped <2: pydantic-ai-slim 2.0.0 (released 2026-06-23) requires
+    # pydantic-graph==2.0.0, whose builder-based `Graph()` API breaks the
+    # `Graph(nodes=, state_type=)` calls in this domain (and math_notes, which
+    # shares the default worker's pydantic-ai install). An unbounded `>=1.58.0`
+    # let a freshly-recreated worker boot-install 2.0.0 and crash-loop. Lift
+    # the cap once the domains migrate to the GraphBuilder API.
+    "pydantic-ai-slim[anthropic,duckduckgo,logfire]>=1.58.0,<2",
 ]
 
 [build-system]
