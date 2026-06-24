@@ -1,26 +1,29 @@
-"""Math-notes ingest graph — transcribe a voice note + parse the photos.
+"""Math-notes ingest graph — transcribe, extract, synthesize.
 
-Two nodes: `TranscribeNoteStep` pulls the uploaded audio off the storage
-plane (via the platform's `AudioInterpreter`) and transcribes it; then
-`ParsePagesStep` vision-parses each notebook photo (via the platform's
-`ImageInterpreter`) into a structured `ParsedPage`. Both thread their
-output onto state for `_persist` to mint a `DailyNoteArtifact` (+ a
-`NotePageArtifact` per photo).
+Three nodes, split into faithful **extraction** then holistic **synthesis**:
 
-    TranscribeNoteStep → ParsePagesStep → End
+    TranscribeNoteStep → ExtractPagesStep → SynthesizeNoteStep → End
 
-The OpenAI SDK ships in the worker base and the two interpreters are
-platform provider helpers, so this domain pulls **no** AI dependency of
-its own. The module imports `pydantic_graph` (the light platform graph
-framework); the heavy work (HTTP download + model calls) is deferred to
-run time and offloaded to threads so it doesn't block the graph's event
-loop. Page parsing is best-effort enrichment: it no-ops when no photos
-are attached or the vision helper isn't deployed yet.
+`TranscribeNoteStep` transcribes the voice note (platform `AudioInterpreter`).
+`ExtractPagesStep` vision-transcribes each notebook photo *faithfully* — raw
+text only, zero interpretation (no LaTeX, no concepts). `SynthesizeNoteStep`
+then runs ONE holistic Opus pass over the transcript + every page's raw text
+and reconstructs the intended math as a note-level `NoteSynthesis` — a
+semantic neighbour of the (fuzzy) notes, not a blind mirror, KaTeX-validated.
+
+The synthesis is factored into `synthesize_note()` so the live node AND the
+data migration (`scripts/migrate_notes_to_document.py`) call the same code.
+
+The OpenAI SDK ships in the worker base and the interpreters are platform
+provider helpers, so this domain pulls no media-AI dependency of its own;
+synthesis uses the platform `basic_agent` (pydantic_ai + Anthropic), imported
+lazily. Heavy work (HTTP download + model calls) is offloaded to threads.
+Extraction and synthesis are best-effort enrichment: they degrade (store
+less) rather than fail the audio ingest. See `docs/daily-notes-redesign.md`.
 """
 from __future__ import annotations
 
 import asyncio
-import json
 from dataclasses import dataclass, field
 from datetime import date
 from typing import TYPE_CHECKING, Optional
@@ -29,12 +32,16 @@ from pydantic import BaseModel, Field
 from pydantic_graph import BaseNode, End, Graph, GraphRunContext
 
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
-from mathai.math_notes.artifacts import ParsedPage
+from mathai.math_notes.artifacts import NotePage, NoteSynthesis
 from mathai.math_notes.state import MathNotesState
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ai_platform.ai.providers.audio import AudioInterpreter
     from ai_platform.ai.providers.vision import ImageInterpreter
+
+# The synthesis model — Claude Opus 4.8, the latest Opus (1M context). One
+# call per note (not per photo), so the deeper reasoning is affordable.
+SYNTHESIS_MODEL = "claude-opus-4-8"
 
 
 @dataclass
@@ -46,8 +53,18 @@ class MathNotesWorkflowDependencies:
     `interpreter` is the platform's `AudioInterpreter` and `image_interpreter`
     its `ImageInterpreter` (both built once per worker, over a
     `PlatformSession`); `image_interpreter` is `None` until the vision helper
-    is deployed, in which case page parsing is skipped. `interpreter` is
+    is deployed, in which case page extraction is skipped. `interpreter` is
     `None` only in degenerate/test paths.
+
+    `page_instructions` (the faithful-extraction vision prompt) and
+    `synthesis_instructions` (the silent-corrector synthesis prompt) are
+    pulled from the platform `PromptRegistry` at submit time (in
+    `deps_factory`) so nodes never carry hardcoded prompt strings — the
+    prompts live as versioned `instructions/*.md` files (deployed via
+    `aiplatform deploy-prompts`). Either is `None` on a registry miss: the
+    vision call then falls back to the platform's generic prompt and the
+    synthesis agent runs without system instructions — both degrade rather
+    than fail the ingest.
     """
 
     audio_ref: str = ""
@@ -56,6 +73,8 @@ class MathNotesWorkflowDependencies:
     created_by: Optional[str] = None
     interpreter: Optional["AudioInterpreter"] = None
     image_interpreter: Optional["ImageInterpreter"] = None
+    page_instructions: Optional[str] = None
+    synthesis_instructions: Optional[str] = None
     logger: WorkerLogger = field(default_factory=NullLogger)
 
 
@@ -66,13 +85,11 @@ class TranscribeNoteStep(
     """Transcribe the uploaded voice note; record it (+ refs + date) on state."""
 
     stage_label = "Transcribe note"
-    stage_description = (
-        "Transcribe the voice note (OpenAI) and record it as a DailyNoteArtifact"
-    )
+    stage_description = "Transcribe the voice note (OpenAI) onto state"
 
     async def run(
         self, ctx: GraphRunContext[MathNotesState, MathNotesWorkflowDependencies]
-    ) -> "ParsePagesStep":
+    ) -> "ExtractPagesStep":
         log = ctx.deps.logger.for_stage("TranscribeNoteStep")
         resolved_date = (
             date.fromisoformat(ctx.deps.note_date) if ctx.deps.note_date else date.today()
@@ -97,120 +114,123 @@ class TranscribeNoteStep(
         ctx.state.transcript = transcript
         ctx.state.note_date = resolved_date
         ctx.state.created_by = ctx.deps.created_by
-        return ParsePagesStep()
+        return ExtractPagesStep()
 
 
-# Instruction handed to the generic platform `ImageInterpreter`. The helper
-# returns plain text; we ask it for JSON and parse it here (domain-side), per
-# the §13 boundary — the platform stays unaware of math/LaTeX/concepts.
-_PAGE_PROMPT = (
-    "You are reading a photo of a page of handwritten mathematics study "
-    "notes. Return ONLY a JSON object (no prose, no markdown fences) with "
-    "these keys:\n"
-    '  "text": a faithful plain-text transcription of the page,\n'
-    '  "latex": the mathematical content as LaTeX (empty string if none),\n'
-    '  "diagram_description": a short description of any diagram or figure '
-    "on the page (empty string if none),\n"
-    '  "concepts": an array of the mathematical concepts the page touches '
-    '(e.g. ["tangent space", "smooth atlas"]).\n'
-    "If the page is unreadable, return the object with empty values."
-)
+# The faithful-extraction vision prompt lives in `instructions/page_parse.md`
+# (prompt `math_notes.page_parse`), loaded from the platform `PromptRegistry`
+# and threaded in as `page_instructions`. It asks ONLY for a faithful
+# transcription of the page — interpretation (LaTeX, concepts) is deferred to
+# the holistic synthesis pass, per the §13 boundary.
+@dataclass
+class ExtractPagesStep(
+    BaseNode[MathNotesState, MathNotesWorkflowDependencies, MathNotesState]
+):
+    """Faithfully transcribe each notebook photo into a `NotePage` (raw text).
 
-
-def _strip_code_fences(text: str) -> str:
-    """Strip a leading/trailing ``` or ```json fence if the model added one."""
-    s = text.strip()
-    if s.startswith("```"):
-        s = s.split("\n", 1)[1] if "\n" in s else s[3:]
-        if s.rstrip().endswith("```"):
-            s = s.rstrip()[:-3]
-    return s.strip()
-
-
-def _coerce_page(raw_text: str, image_ref: str, page_index: int) -> ParsedPage:
-    """Parse the interpreter's text into a `ParsedPage`, tolerantly.
-
-    The vision helper returns free text; we ask it for JSON. If the parse
-    fails, stash the raw text on `text` so a bad parse never loses content
-    or crashes the ingest — page parsing is enrichment, not the core path.
+    No-ops when there are no `image_refs` or no `image_interpreter` is wired —
+    page extraction is enrichment, never a hard dependency of the audio ingest.
+    Zero interpretation here: just capture what's on the page; the synthesis
+    pass reconstructs the math.
     """
-    try:
-        # `strict=False` tolerates the literal newlines/tabs the vision model
-        # routinely leaves inside string values (a multi-line page
-        # transcription) — strict parsing rejects those control characters and
-        # would drop us into the raw-text fallback, losing `concepts`.
-        data = json.loads(_strip_code_fences(raw_text), strict=False)
-        if not isinstance(data, dict):
-            raise ValueError("expected a JSON object")
-        concepts = data.get("concepts") or []
-        if not isinstance(concepts, list):
-            concepts = [concepts]
-        return ParsedPage(
-            page_index=page_index,
-            image_ref=image_ref,
-            text=(data.get("text") or None),
-            latex=(data.get("latex") or None),
-            diagram_description=(data.get("diagram_description") or None),
-            concepts=[str(c) for c in concepts],
+
+    stage_label = "Extract pages"
+    stage_description = "Faithfully transcribe notebook photos (raw text, no interpretation)"
+
+    async def run(
+        self, ctx: GraphRunContext[MathNotesState, MathNotesWorkflowDependencies]
+    ) -> "SynthesizeNoteStep":
+        log = ctx.deps.logger.for_stage("ExtractPagesStep")
+        interpreter = ctx.deps.image_interpreter
+        refs = ctx.state.image_refs
+
+        if interpreter is None or not refs:
+            reason = "no image_interpreter wired" if interpreter is None else "no photos"
+            await log.info(f"skipping page extraction ({reason})")
+            return SynthesizeNoteStep()
+
+        await log.info(f"extracting {len(refs)} page(s)")
+        page_prompt = ctx.deps.page_instructions  # None → generic vision prompt
+
+        def _extract(image_ref: str, page_index: int) -> NotePage:
+            # Blocking (HTTP download + vision call); runs in a worker thread.
+            result = interpreter.interpret(image_ref, prompt=page_prompt)
+            return NotePage(
+                page_index=page_index,
+                image_ref=image_ref,
+                raw_text=(result.text or None),
+            )
+
+        pages = await asyncio.gather(
+            *(asyncio.to_thread(_extract, ref, i) for i, ref in enumerate(refs))
         )
-    except (json.JSONDecodeError, ValueError, TypeError):
-        return ParsedPage(
-            page_index=page_index, image_ref=image_ref, text=(raw_text or None)
+        ctx.state.pages = list(pages)
+        await log.info(
+            f"extracted {len(ctx.state.pages)} page(s); "
+            f"{sum(len(p.raw_text or '') for p in ctx.state.pages)} chars total"
         )
+        return SynthesizeNoteStep()
 
 
-def _compose_ocr_text(pages: list[ParsedPage]) -> Optional[str]:
-    """Combine the parsed pages into the note-level `ocr_text` blob."""
-    chunks: list[str] = []
-    for p in pages:
-        parts = [x for x in (p.text, p.latex, p.diagram_description) if x]
-        if parts:
-            chunks.append("\n".join(parts))
-    return "\n\n".join(chunks) if chunks else None
+# Agent output for the synthesis pass — the cleaned-up, KaTeX-validated math.
+class _SynthesisOutput(BaseModel):
+    """Agent output: the note-level synthesis (validated markdown + concepts)."""
 
-
-# Instructions for the validate_latex tool loop. Mirrors math_qa's
-# `GenerateLatexStep`: the agent MUST round-trip its LaTeX through the tool
-# (KaTeX in the math-ui server) and only finish once it returns valid.
-class _PageLatex(BaseModel):
-    """Agent output: KaTeX-validated LaTeX for one page's math."""
-
-    latex_source: str = Field(
-        default="", description="KaTeX-compilable LaTeX for the page's math (empty if none)."
+    markdown: str = Field(
+        default="",
+        description="Prose + embedded KaTeX-compilable LaTeX for the whole note (empty if none).",
     )
+    concepts: list[str] = Field(
+        default_factory=list, description="Mathematical concepts the note touches."
+    )
+    summary: str = Field(default="", description="A short prose summary of the note.")
     validation_attempts: int = Field(
         default=1, ge=0, description="How many validate_latex calls before converging."
     )
 
 
-_LATEX_INSTRUCTIONS = (
-    "You are given the mathematical content of one page of handwritten study "
-    "notes — possibly as unicode math symbols or rough LaTeX. Produce a single "
-    "KaTeX-compilable LaTeX representation of the math on the page (use "
-    "\\(...\\) / \\[...\\] delimiters around each expression). You MUST call "
-    "the `validate_latex` tool and only finish once it returns valid=true; if "
-    "it returns an error, fix the offending LaTeX and call it again. Put the "
-    "validated LaTeX in `latex_source` and the number of validate_latex calls "
-    "in `validation_attempts`. If the page has no real mathematical content, "
-    "return an empty `latex_source`."
-)
+def _compose_synthesis_prompt(
+    transcript: Optional[str], pages: list[NotePage]
+) -> Optional[str]:
+    """Build the synthesis agent's user prompt from the note's raw material.
 
-
-async def _validated_latex(page: ParsedPage, log) -> tuple[Optional[str], int]:
-    """Return KaTeX-validated LaTeX for `page` (or `None`), via a
-    `validate_latex` tool loop — never a guess.
-
-    Feeds the page's extracted LaTeX (or, failing that, its transcribed
-    text, which often carries the math as unicode) to a `basic_agent` that
-    self-corrects against the math-ui KaTeX endpoint. Stored LaTeX is thus
-    guaranteed to compile. If the agent or the UI is unavailable (e.g. the
-    math-ui server isn't reachable from the worker) we store **no** LaTeX
-    rather than an unvalidated guess — page parsing is best-effort
-    enrichment and must not fail the ingest.
+    Returns `None` when there's nothing to synthesize (no transcript, no page
+    text) — the caller then skips the model call entirely.
     """
-    source = (page.latex or page.text or "").strip()
+    chunks: list[str] = []
+    if transcript and transcript.strip():
+        chunks.append(f"Voice-note transcript:\n{transcript.strip()}")
+    page_chunks = [
+        f"Page {p.page_index + 1}:\n{p.raw_text.strip()}"
+        for p in pages
+        if p.raw_text and p.raw_text.strip()
+    ]
+    if page_chunks:
+        chunks.append("Notebook pages (faithful raw transcription):\n\n" + "\n\n".join(page_chunks))
+    return "\n\n".join(chunks) if chunks else None
+
+
+async def synthesize_note(
+    transcript: Optional[str],
+    pages: list[NotePage],
+    instructions: Optional[str],
+    log=None,
+) -> Optional[NoteSynthesis]:
+    """Run the holistic synthesis pass over a note's raw material.
+
+    Feeds the transcript + every page's faithful raw text to an Opus
+    `basic_agent` that reconstructs the intended math as one coherent,
+    KaTeX-validated `NoteSynthesis` — never reproducing a learner's error,
+    silently producing the correct version. Returns `None` when there's
+    nothing to synthesize, or when the agent / math-ui validator is
+    unavailable (best-effort enrichment must never fail the ingest).
+
+    Shared by the live `SynthesizeNoteStep` and the data migration so both
+    produce identical output.
+    """
+    source = _compose_synthesis_prompt(transcript, pages)
     if not source:
-        return None, 0
+        return None
     try:
         # Lazy imports: keep workflow.py importable from the control plane /
         # any runtime; pydantic_ai + basic_agent live in the default base.
@@ -220,81 +240,67 @@ async def _validated_latex(page: ParsedPage, log) -> tuple[Optional[str], int]:
         from mathai.math_notes.tools import validate_latex
 
         agent = basic_agent(
-            output_type=_PageLatex,
-            instructions=_LATEX_INSTRUCTIONS,
+            model=SYNTHESIS_MODEL,
+            output_type=_SynthesisOutput,
+            instructions=instructions,
             tools=[Tool(validate_latex)],
             retries=2,
         )
         result = await agent.run(user_prompt=source)
         out = result.output
-        return (out.latex_source.strip() or None), out.validation_attempts
+        return NoteSynthesis(
+            markdown=(out.markdown.strip() or None),
+            concepts=[str(c) for c in out.concepts],
+            summary=(out.summary.strip() or None),
+            model_used=SYNTHESIS_MODEL,
+            validation_attempts=out.validation_attempts,
+        )
     except Exception as exc:  # noqa: BLE001 — enrichment must never fail ingest
-        await log.warning(f"latex validation unavailable ({exc}); storing no latex")
-        return None, 0
+        if log is not None:
+            await log.warning(f"synthesis unavailable ({exc}); storing no synthesis")
+        return None
 
 
 @dataclass
-class ParsePagesStep(
+class SynthesizeNoteStep(
     BaseNode[MathNotesState, MathNotesWorkflowDependencies, MathNotesState]
 ):
-    """Vision-parse each notebook photo into a `ParsedPage` (best-effort).
+    """One holistic Opus pass → the note-level `NoteSynthesis` (best-effort)."""
 
-    No-ops when there are no `image_refs` or no `image_interpreter` is wired
-    (the platform vision helper may not be deployed yet) — page parsing is
-    enrichment, never a hard dependency of the audio ingest.
-    """
-
-    stage_label = "Parse pages"
-    stage_description = "Vision-parse notebook photos into structured note pages"
+    stage_label = "Synthesize note"
+    stage_description = "Reconstruct the intended math from the whole note (Opus)"
 
     async def run(
         self, ctx: GraphRunContext[MathNotesState, MathNotesWorkflowDependencies]
     ) -> End[MathNotesState]:
-        log = ctx.deps.logger.for_stage("ParsePagesStep")
-        interpreter = ctx.deps.image_interpreter
-        refs = ctx.state.image_refs
-
-        if interpreter is None or not refs:
-            reason = "no image_interpreter wired" if interpreter is None else "no photos"
-            await log.info(f"skipping page parse ({reason})")
-            return End(ctx.state)
-
-        await log.info(f"parsing {len(refs)} page(s)")
-
-        def _parse(image_ref: str, page_index: int) -> ParsedPage:
-            # Blocking (HTTP download + vision call); runs in a worker thread.
-            result = interpreter.interpret(image_ref, prompt=_PAGE_PROMPT)
-            return _coerce_page(result.text, image_ref, page_index)
-
-        async def _process(image_ref: str, page_index: int) -> ParsedPage:
-            page = await asyncio.to_thread(_parse, image_ref, page_index)
-            # Replace the vision model's raw LaTeX with KaTeX-validated LaTeX
-            # (or None) — the math is checked against the math-ui renderer, not
-            # trusted blind.
-            page.latex, _attempts = await _validated_latex(page, log)
-            return page
-
-        pages = await asyncio.gather(
-            *(_process(ref, i) for i, ref in enumerate(refs))
+        log = ctx.deps.logger.for_stage("SynthesizeNoteStep")
+        synthesis = await synthesize_note(
+            ctx.state.transcript,
+            ctx.state.pages,
+            ctx.deps.synthesis_instructions,
+            log,
         )
-        ctx.state.pages = list(pages)
-        ctx.state.ocr_text = _compose_ocr_text(ctx.state.pages)
-        await log.info(
-            f"parsed {len(ctx.state.pages)} page(s); "
-            f"{sum(len(p.concepts) for p in ctx.state.pages)} concept mention(s); "
-            f"{sum(1 for p in ctx.state.pages if p.latex)} with validated LaTeX"
-        )
+        ctx.state.synthesis = synthesis
+        if synthesis is None:
+            await log.info("no synthesis produced (no source, or validator unavailable)")
+        else:
+            await log.info(
+                f"synthesized note: {len(synthesis.markdown or '')} chars, "
+                f"{len(synthesis.concepts)} concept(s), "
+                f"{synthesis.validation_attempts} validate_latex call(s)"
+            )
         return End(ctx.state)
 
 
 math_notes_graph = Graph(
-    nodes=(TranscribeNoteStep, ParsePagesStep),
+    nodes=(TranscribeNoteStep, ExtractPagesStep, SynthesizeNoteStep),
     state_type=MathNotesState,
 )
 
 math_notes_node_registry: dict[str, type] = {
     "TranscribeNoteStep": TranscribeNoteStep,
-    "ParsePagesStep": ParsePagesStep,
+    "ExtractPagesStep": ExtractPagesStep,
+    "SynthesizeNoteStep": SynthesizeNoteStep,
 }
 
 
@@ -312,15 +318,15 @@ def _extract_math_notes_result(state: MathNotesState):
         storage_ref=state.audio_ref,
         image_refs=state.image_refs,
         transcript=state.transcript,
-        ocr_text=state.ocr_text,
+        pages=state.pages,
+        synthesis=state.synthesis,
+        schema_version=2,
     )
     # `_run_persist` has already extended `state.artifact_refs` with the minted
     # DailyNoteArtifact id by the time this runs (job_runner: persist → extract
     # → complete). Pass it through so `GET /jobs/{id}/result` can hydrate the
-    # canonical artifact via `hydrate_artifact_refs` — an ungated single-node
-    # job has no resume checkpoint, so this result payload is the only ref
-    # source. (Hard-coding `[]` here, as the _demo template does, leaves the
-    # result unable to find the artifact.)
+    # canonical artifact — an ungated single-node-style job has no resume
+    # checkpoint, so this result payload is the only ref source.
     return MathNotesResult(
         note=note,
         artifact_refs=[str(x) for x in state.artifact_refs],
