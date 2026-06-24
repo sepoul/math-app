@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Latex } from "@/components/library";
-import { mediaSrc, mediaRefUrl, type DailyNoteArtifact } from "@/lib/domains/math-notes";
+import { mediaSrc, type DailyNoteArtifact } from "@/lib/domains/math-notes";
+import { NotePhotos } from "./note-photos";
 
 /**
  * Full render of one daily note under the unified document schema. The
@@ -51,17 +52,7 @@ export function NoteView({ note }: { note: DailyNoteArtifact }) {
       )}
 
       {note.image_refs && note.image_refs.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-1">
-          {note.image_refs.map((ref) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={ref}
-              src={mediaRefUrl(ref)}
-              alt="notebook photo"
-              className="size-28 rounded-md border object-cover"
-            />
-          ))}
-        </div>
+        <NotePhotos refs={note.image_refs} />
       )}
 
       {showRaw && (
