@@ -8,7 +8,7 @@ import { ArrowLeft, Camera, ImagePlus, Loader2, Mic, Square, X } from "lucide-re
 import { PageContainer, PageHeader, Section, ErrorCard } from "@/components/library";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { jobsClient, TERMINAL_JOB_STATUSES } from "@/lib/platform";
-import { notesClient } from "@/lib/domains/math-notes";
+import { notesClient, downscaleImage } from "@/lib/domains/math-notes";
 
 // Single-learner MVP — `created_by` is stamped but not yet filtered on
 // (server-side filtering is PR-3). Per-user scoping arrives with auth.
@@ -109,15 +109,22 @@ export default function RecordNotePage() {
     setAudio(f);
   }
 
-  function onPickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+  async function onPickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const files = Array.from(input.files ?? []);
+    // Reset now (before any await, while the target is current) so the same
+    // file — or another camera shot — can be picked again.
+    input.value = "";
     if (files.length === 0) return;
+    // Downscale on selection so the multi-MB originals are shrunk to a few
+    // hundred KB before they're ever uploaded, and previews use the small
+    // version too. downscaleImage never throws (returns the original on any
+    // failure), so capture is never blocked.
+    const shrunk = await Promise.all(files.map((f) => downscaleImage(f)));
     // Append, so "Take photo" and "Add from library" (and repeat taps)
     // accumulate instead of replacing.
-    setPhotos((prev) => [...prev, ...files]);
-    setPhotoUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
-    // Reset so the same file — or another camera shot — can be picked again.
-    e.target.value = "";
+    setPhotos((prev) => [...prev, ...shrunk]);
+    setPhotoUrls((prev) => [...prev, ...shrunk.map((f) => URL.createObjectURL(f))]);
   }
 
   function removePhoto(i: number) {
