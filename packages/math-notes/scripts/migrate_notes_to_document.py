@@ -23,13 +23,20 @@ Run it in the **default-runtime** venv (synthesis needs `basic_agent` /
 Anthropic) with the platform + package on PYTHONPATH, pointed at the target
 backend, with the math-ui validator reachable (`UI_TOOL_API_URL`). Example:
 
-    BACKEND=supabase SUPABASE_URL=... SUPABASE_SERVICE_KEY=... \
+    BACKEND=supabase SUPABASE_URL=... SUPABASE_SECRET_KEY=... \
+    SUPABASE_CONNECTION_STRING=... ANTHROPIC_API_KEY=... \
     UI_TOOL_API_URL=http://localhost:3000 \
     PYTHONPATH="../ai-platform/packages/core/src:../ai-platform/packages/worker/src:packages/math-notes/src" \
       ../ai-platform/.venv/bin/python \
       packages/math-notes/scripts/migrate_notes_to_document.py            # dry-run
     # ... review migration-report.json, then:
       ... migrate_notes_to_document.py --apply                            # write
+
+`make_backend()` resolves `BACKEND`; the supabase backend reads
+`SUPABASE_URL` / `SUPABASE_SECRET_KEY` / `SUPABASE_CONNECTION_STRING`
+(all required) and `SUPABASE_SCHEMA` (unset = `public`/prod). Synthesis
+needs `ANTHROPIC_API_KEY` (the Opus pass) and `UI_TOOL_API_URL` reachable
+(the `validate_latex` loop).
 """
 from __future__ import annotations
 
@@ -116,6 +123,25 @@ async def _migrate_one(
         if synthesis is not None:
             rec["concepts"] = len(synthesis.concepts)
             rec["markdown_chars"] = len(synthesis.markdown or "")
+
+        # A `None` synthesis has two very different causes. (a) The note has no
+        # source material (no transcript, no page text) — `None` is the correct
+        # terminal state, so migrate it. (b) The synthesis pass was *unavailable*
+        # (no Anthropic key, validator unreachable, model error) —
+        # `synthesize_note` swallows those and also returns `None`. We must NOT
+        # seal (b) at schema_version=2: that would mark it migrated and the
+        # idempotent re-run would skip it forever. Leave it as a failure so a
+        # re-run (with the env fixed) retries it.
+        has_source = bool((note.transcript or "").strip()) or any(
+            (p.raw_text or "").strip() for p in pages
+        )
+        if synthesis is None and has_source:
+            rec["status"] = "failed"
+            rec["reason"] = (
+                "synthesis unavailable (Anthropic key / validator / model); "
+                "left unmigrated for retry"
+            )
+            return rec
 
         if apply:
             note.pages = pages
