@@ -11,9 +11,9 @@
 
 [package]
 name    = "mathai-math-conversation"
-version = "0.1.0"
+version = "0.1.1"
 runtime = "crewai"
-wheel   = "dist/mathai_math_conversation-0.1.0-py3-none-any.whl"
+wheel   = "dist/mathai_math_conversation-0.1.1-py3-none-any.whl"
 
 [control]
 domain               = "math_conversation"

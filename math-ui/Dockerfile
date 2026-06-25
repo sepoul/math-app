@@ -56,6 +56,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=7860
+# Bind the Next standalone server to all IPv4 interfaces. Without this it
+# binds to `::` (IPv6) only, so the container HEALTHCHECK (`wget
+# http://127.0.0.1:7860`, IPv4) gets connection-refused and the container is
+# marked unhealthy even though it serves fine through the mapped port.
+ENV HOSTNAME=0.0.0.0
 
 EXPOSE 7860
 

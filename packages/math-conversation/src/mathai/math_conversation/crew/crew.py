@@ -26,7 +26,7 @@ from typing import Any, Optional
 
 from mathai.math_conversation.crew.personae import build_agent
 from mathai.math_conversation.crew.tools import ConcludeSignal, build_conclude_tool
-from mathai.math_conversation.registry import load_persona
+from mathai.math_conversation.registry import GetPrompt, load_persona
 
 # v1 panel composition. The Algebraist anchors rigor, the Visualist
 # pushes intuition, the Synthesist closes loops between them.
@@ -52,11 +52,18 @@ class Panel:
     order: tuple[str, ...]              # persona names in round-robin order
 
 
-def build_panel(personae: tuple[str, ...] = DEFAULT_PANEL) -> Panel:
+def build_panel(
+    personae: tuple[str, ...] = DEFAULT_PANEL,
+    *,
+    get_prompt: GetPrompt,
+) -> Panel:
     """Construct a `Panel`: one agent per persona, sharing one conclude signal.
 
-    All agents receive the same `conclude` tool instance, so a call from
-    any panelist flips the same signal the turn loop reads.
+    `get_prompt` resolves a registry prompt name to its Markdown; it's
+    threaded down to `load_persona` / `load_skill` so personae and skills come
+    from the deployed prompt registry. All agents receive the same `conclude`
+    tool instance, so a call from any panelist flips the same signal the turn
+    loop reads.
     """
     signal = ConcludeSignal()
     conclude_tool = build_conclude_tool(signal)
@@ -66,8 +73,8 @@ def build_panel(personae: tuple[str, ...] = DEFAULT_PANEL) -> Panel:
     display_by_name: dict[str, str] = {}
     role_by_name: dict[str, str] = {}
     for name in personae:
-        spec = load_persona(name)
-        agents_by_name[name] = build_agent(name, tools_by_name=tools_by_name)
+        spec = load_persona(name, get_prompt)
+        agents_by_name[name] = build_agent(name, get_prompt=get_prompt, tools_by_name=tools_by_name)
         display_by_name[name] = spec.display_name
         role_by_name[name] = spec.role
 
