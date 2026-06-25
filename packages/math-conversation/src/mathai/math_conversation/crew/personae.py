@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from mathai.math_conversation.registry import load_persona, load_skill
+from mathai.math_conversation.registry import GetPrompt, load_persona, load_skill
 
 DEFAULT_MODEL = os.getenv("CREW_MODEL", "anthropic/claude-sonnet-4-5-20250929")
 
@@ -26,6 +26,7 @@ DEFAULT_MODEL = os.getenv("CREW_MODEL", "anthropic/claude-sonnet-4-5-20250929")
 def build_agent(
     persona_name: str,
     *,
+    get_prompt: GetPrompt,
     tools_by_name: dict[str, Any] | None = None,
     model: str | None = None,
 ) -> Any:
@@ -45,8 +46,8 @@ def build_agent(
     """
     import crewai
 
-    persona = load_persona(persona_name)
-    skills = [load_skill(name) for name in persona.skills]
+    persona = load_persona(persona_name, get_prompt)
+    skills = [load_skill(name, get_prompt) for name in persona.skills]
 
     backstory = persona.body
     if skills:

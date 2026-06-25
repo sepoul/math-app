@@ -1,27 +1,32 @@
 """Persona / skill loading for the math_conversation domain.
 
-The platform prompt registry stores personae and skills as `Prompt`
-entries (`kind="persona"` / `"skill"`) whose `instructions` hold the full
-Markdown (YAML front-matter + body). The *interpretation* of that
-front-matter into typed `PersonaSpec` / `SkillSpec` is domain knowledge,
-so it lives here — `ai_platform` only provides the generic
-`parse_frontmatter` splitter.
+Personae and skills are deployed to the platform **prompt registry** as
+`Prompt` entries (`kind="persona"` / `"skill"`) via `aiplatform deploy-prompts`.
+Their names follow the `<domain>.<kind>.<name>` convention that
+`load_prompts_from_dir` produces, i.e. `math_conversation.persona.<name>` and
+`math_conversation.skill.<name>`. This module fetches that Markdown at run time
+through a `get_prompt` resolver (wired from `PlatformClient.prompt_registry` in
+`execution.py`) and parses the YAML front-matter into typed `PersonaSpec` /
+`SkillSpec` — that interpretation is domain knowledge, so it lives here;
+`ai_platform` only provides the generic `parse_frontmatter` splitter.
 
-`load_persona` / `load_skill` read straight from the on-disk
-`instructions/math_conversation/...` files; `parse_persona` /
-`parse_skill` parse an already-loaded Markdown string (e.g. fetched from
-the `/prompts` API).
+(Previously these were read from an on-disk `instructions/` directory found by
+walking parent directories. The repo split + the move to registry-backed
+prompts removed that directory from the platform image, so the filesystem path
+no longer exists — the prompts are now the registry's source of truth.)
 """
 from __future__ import annotations
 
-from pathlib import Path
+from typing import Callable
 
 from ai_platform.ai.prompts.registry import parse_frontmatter
-from ai_platform.utilities.paths import find_ancestor_containing
 from mathai.math_conversation.models import PersonaSpec, SkillSpec
 
-_INSTRUCTIONS_DIR = find_ancestor_containing("instructions") / "instructions"
 _DOMAIN = "math_conversation"
+
+# Resolves a registry prompt name -> its Markdown (front-matter + body).
+# Raises if the prompt is absent — personae/skills are required to run a panel.
+GetPrompt = Callable[[str], str]
 
 
 def parse_persona(markdown: str, name: str) -> PersonaSpec:
@@ -51,13 +56,11 @@ def parse_skill(markdown: str, name: str) -> SkillSpec:
     )
 
 
-def load_persona(name: str) -> PersonaSpec:
-    """Load and parse `instructions/math_conversation/personae/<name>.md`."""
-    path = _INSTRUCTIONS_DIR / _DOMAIN / "personae" / f"{name}.md"
-    return parse_persona(path.read_text(encoding="utf-8"), name)
+def load_persona(name: str, get_prompt: GetPrompt) -> PersonaSpec:
+    """Fetch `math_conversation.persona.<name>` from the registry and parse it."""
+    return parse_persona(get_prompt(f"{_DOMAIN}.persona.{name}"), name)
 
 
-def load_skill(name: str) -> SkillSpec:
-    """Load and parse `instructions/math_conversation/skills/<name>.md`."""
-    path = _INSTRUCTIONS_DIR / _DOMAIN / "skills" / f"{name}.md"
-    return parse_skill(path.read_text(encoding="utf-8"), name)
+def load_skill(name: str, get_prompt: GetPrompt) -> SkillSpec:
+    """Fetch `math_conversation.skill.<name>` from the registry and parse it."""
+    return parse_skill(get_prompt(f"{_DOMAIN}.skill.{name}"), name)

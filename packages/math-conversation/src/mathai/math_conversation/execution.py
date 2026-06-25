@@ -18,6 +18,7 @@ from ai_platform.jobs.execution_policy import (
     PersistencePolicy,
 )
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
+from ai_platform.workspace.client import PlatformClient
 from mathai.math_conversation.artifacts import (
     MATH_CONVERSATION_ARTIFACTS,
     MathConversationArtifact,
@@ -41,7 +42,23 @@ MATH_CONVERSATION_EDGES = [
 ]
 
 
-def build_math_conversation_execution(artifact_api: ArtifactService) -> JobExecution:
+def build_math_conversation_execution(
+    artifact_api: ArtifactService, platform_client: PlatformClient
+) -> JobExecution:
+    # Personae/skills live in the platform prompt registry (deployed via
+    # `aiplatform deploy-prompts`). Resolve their Markdown by name at run time;
+    # unlike the best-effort enrichment prompts in math_qa/math_notes, these are
+    # required to build the panel, so a missing registry / prompt fails loud.
+    prompt_registry = getattr(platform_client, "prompt_registry", None)
+
+    def _get_prompt(name: str) -> str:
+        if prompt_registry is None:
+            raise RuntimeError(
+                f"prompt registry unavailable; cannot load {name!r} "
+                "(deploy with `aiplatform deploy-prompts`)"
+            )
+        return prompt_registry.get_prompt(name).instructions
+
     def _deps_factory(payload: dict) -> MathConversationDeps:
         job_id = payload.get("_job_id")
         logger: WorkerLogger = WorkerLogger(job_id) if job_id else NullLogger()
@@ -55,6 +72,7 @@ def build_math_conversation_execution(artifact_api: ArtifactService) -> JobExecu
             max_turns=int(payload.get("max_turns", 12)),
             logger=logger,
             artifact_api=artifact_api,
+            get_prompt=_get_prompt,
         )
 
     def _persist(job_id: str, state: MathConversationState) -> list[UUID]:
@@ -83,6 +101,8 @@ def build_math_conversation_execution(artifact_api: ArtifactService) -> JobExecu
 def register_execution(ctx: BootstrapContext) -> ExecutionDomain:
     return ExecutionDomain(
         name="math_conversation",
-        job_executions=[build_math_conversation_execution(ctx.artifact_service)],
+        job_executions=[
+            build_math_conversation_execution(ctx.artifact_service, ctx.platform_client)
+        ],
         artifact_types=list(MATH_CONVERSATION_ARTIFACTS.values()),
     )

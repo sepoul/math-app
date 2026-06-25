@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from uuid import UUID
 
 from pydantic_graph import BaseNode, End, Graph, GraphRunContext
@@ -57,13 +57,18 @@ class MathConversationDeps:
     `artifact_api` is the platform-shared service used by `SeedStep` to
     hydrate a source math_qa job's artifacts; it is required only for
     the `source_job_id` path and may be `None` for question_text-only
-    runs and unit tests.
+    runs and unit tests. `get_prompt` resolves a registry prompt name to its
+    Markdown (wired from `PlatformClient.prompt_registry` in the deps_factory);
+    `RunCrewStep` threads it into `build_panel` so personae/skills load from
+    the deployed prompt registry. It's `None` only outside the runner (tests
+    of non-crew nodes).
     """
     source_job_id: Optional[UUID] = None
     question_text: Optional[str] = None
     max_turns: int = 12
     logger: WorkerLogger = field(default_factory=NullLogger)
     artifact_api: Optional[ArtifactService] = None
+    get_prompt: Optional[Callable[[str], str]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +180,12 @@ class RunCrewStep(BaseNode[MathConversationState, MathConversationDeps]):
             ctx.state.stop_reason = "concluded"
             return FinalizeStep()
 
-        panel = build_panel()
+        if ctx.deps.get_prompt is None:
+            raise RuntimeError(
+                "get_prompt resolver missing on deps — cannot load personae/skills "
+                "from the prompt registry (deploy with `aiplatform deploy-prompts`)"
+            )
+        panel = build_panel(get_prompt=ctx.deps.get_prompt)
         emitter = CrewChatEmitter(ctx.deps.logger, turns_budget=ctx.state.max_turns)
 
         # Roll call — UI shows each panelist joining before the first turn.
