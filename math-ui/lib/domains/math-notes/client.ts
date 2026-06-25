@@ -35,6 +35,7 @@ export const notesClient = {
     imageRefs?: string[];
     noteDate?: string | null;
     createdBy?: string | null;
+    flairs?: string[];
   }): Promise<RunSubmitResponse> {
     return jobsClient.submit({
       job_type: "math_notes",
@@ -42,6 +43,7 @@ export const notesClient = {
       image_refs: input.imageRefs ?? [],
       note_date: input.noteDate ?? null,
       created_by: input.createdBy ?? null,
+      flairs: input.flairs ?? [],
     });
   },
 };

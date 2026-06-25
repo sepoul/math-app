@@ -8,7 +8,7 @@ import { ArrowLeft, Camera, ImagePlus, Loader2, Mic, Square, X } from "lucide-re
 import { PageContainer, PageHeader, Section, ErrorCard } from "@/components/library";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { jobsClient, TERMINAL_JOB_STATUSES } from "@/lib/platform";
-import { notesClient, downscaleImage } from "@/lib/domains/math-notes";
+import { notesClient, downscaleImage, NOTE_FLAIRS } from "@/lib/domains/math-notes";
 
 // Single-learner MVP — `created_by` is stamped but not yet filtered on
 // (server-side filtering is PR-3). Per-user scoping arrives with auth.
@@ -63,6 +63,14 @@ export default function RecordNotePage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // --- flairs: learner directives that steer the synthesis (default none) ---
+  const [flairs, setFlairs] = useState<string[]>([]);
+  function toggleFlair(key: string) {
+    setFlairs((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }
 
   const setAudio = useCallback((blob: Blob | null) => {
     setAudioUrl((prev) => {
@@ -160,6 +168,7 @@ export default function RecordNotePage() {
         imageRefs,
         noteDate,
         createdBy: LEARNER,
+        flairs,
       });
       const final = await waitForJob(sub.job_id);
       if (final === "FAILED") throw new Error("Ingest job failed — check worker logs.");
@@ -169,6 +178,7 @@ export default function RecordNotePage() {
       photoUrls.forEach((u) => URL.revokeObjectURL(u));
       setPhotos([]);
       setPhotoUrls([]);
+      setFlairs([]);
       setStatus(null);
       toast.success("Note saved.");
       router.push("/math-notes");
@@ -293,6 +303,41 @@ export default function RecordNotePage() {
               onChange={(e) => setNoteDate(e.target.value)}
               className="rounded-md border bg-background px-2.5 py-1.5 text-sm"
             />
+          </div>
+
+          {/* flairs — learner directives that steer the synthesis */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">
+              Directives <span className="text-muted-foreground">(optional)</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {NOTE_FLAIRS.map((f) => {
+                const on = flairs.includes(f.key);
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => toggleFlair(f.key)}
+                    aria-pressed={on}
+                    title={f.description}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                      on
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+            {flairs.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {NOTE_FLAIRS.filter((f) => flairs.includes(f.key))
+                  .map((f) => f.description)
+                  .join(" ")}
+              </p>
+            )}
           </div>
 
           <Button onClick={onSave} disabled={!audioBlob || busy || recording}>

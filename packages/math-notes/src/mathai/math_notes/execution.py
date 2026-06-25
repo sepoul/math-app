@@ -75,10 +75,34 @@ def build_math_notes_execution(
         except Exception:
             return None
 
+    def _flair_directives(flairs: list) -> list[str]:
+        """Resolve each note flair to its registry directive *body*.
+
+        Flairs are stored as `math_notes.flair.<key>` prompts; we fetch the
+        Markdown and strip the YAML front-matter (label/description are UI
+        metadata) so only the directive body reaches the synthesis prompt.
+        Best-effort: a missing/unreadable flair is skipped, never fatal."""
+        from ai_platform.ai.prompts.registry import parse_frontmatter
+
+        out: list[str] = []
+        for key in flairs:
+            md = _load_prompt(f"math_notes.flair.{key}")
+            if not md:
+                continue
+            try:
+                _meta, body = parse_frontmatter(md)
+            except Exception:
+                body = md
+            if body and body.strip():
+                out.append(body.strip())
+        return out
+
     def _deps_factory(payload: dict) -> MathNotesWorkflowDependencies:
         job_id = payload.get("_job_id")
         logger: WorkerLogger = WorkerLogger(job_id) if job_id else NullLogger()
         note_date = payload.get("note_date")
+        # Flairs arrive as enum *values* (e.g. "dont_spoil") over the JSON submit.
+        flairs = [str(f) for f in (payload.get("flairs") or [])]
         return MathNotesWorkflowDependencies(
             audio_ref=payload.get("audio_ref", ""),
             image_refs=list(payload.get("image_refs") or []),
@@ -90,6 +114,7 @@ def build_math_notes_execution(
             image_interpreter=image_interpreter,
             page_instructions=_load_prompt("math_notes.page_parse"),
             synthesis_instructions=_load_prompt("math_notes.synthesis"),
+            flair_directives=_flair_directives(flairs),
             logger=logger,
         )
 

@@ -75,6 +75,10 @@ class MathNotesWorkflowDependencies:
     image_interpreter: Optional["ImageInterpreter"] = None
     page_instructions: Optional[str] = None
     synthesis_instructions: Optional[str] = None
+    # Resolved flair directive bodies (loaded from the registry per the note's
+    # `flairs` in deps_factory) — injected into the synthesis prompt as
+    # learner directives that override the silent-corrector default.
+    flair_directives: list[str] = field(default_factory=list)
     logger: WorkerLogger = field(default_factory=NullLogger)
 
 
@@ -190,24 +194,46 @@ class _SynthesisOutput(BaseModel):
 
 
 def _compose_synthesis_prompt(
-    transcript: Optional[str], pages: list[NotePage]
+    transcript: Optional[str],
+    pages: list[NotePage],
+    flair_directives: Optional[list[str]] = None,
 ) -> Optional[str]:
     """Build the synthesis agent's user prompt from the note's raw material.
 
+    Any `flair_directives` (resolved from the note's flairs) are prepended as a
+    high-priority `LEARNER DIRECTIVES` block that overrides the synthesis
+    defaults — lifting e.g. a "don't spoil" instruction out of the noisy
+    transcript into a first-class control the model must obey.
+
     Returns `None` when there's nothing to synthesize (no transcript, no page
-    text) — the caller then skips the model call entirely.
+    text) — the caller then skips the model call entirely. Flairs alone are not
+    enough to synthesize; they only steer a synthesis of real material.
     """
-    chunks: list[str] = []
+    # Source material first — flairs alone never trigger a synthesis.
+    source_chunks: list[str] = []
     if transcript and transcript.strip():
-        chunks.append(f"Voice-note transcript:\n{transcript.strip()}")
+        source_chunks.append(f"Voice-note transcript:\n{transcript.strip()}")
     page_chunks = [
         f"Page {p.page_index + 1}:\n{p.raw_text.strip()}"
         for p in pages
         if p.raw_text and p.raw_text.strip()
     ]
     if page_chunks:
-        chunks.append("Notebook pages (faithful raw transcription):\n\n" + "\n\n".join(page_chunks))
-    return "\n\n".join(chunks) if chunks else None
+        source_chunks.append(
+            "Notebook pages (faithful raw transcription):\n\n" + "\n\n".join(page_chunks)
+        )
+    if not source_chunks:
+        return None
+
+    directives = [d.strip() for d in (flair_directives or []) if d and d.strip()]
+    chunks: list[str] = []
+    if directives:
+        chunks.append(
+            "LEARNER DIRECTIVES (these OVERRIDE your default behavior — follow "
+            "them exactly):\n" + "\n\n".join(directives)
+        )
+    chunks.extend(source_chunks)
+    return "\n\n".join(chunks)
 
 
 async def synthesize_note(
@@ -215,6 +241,7 @@ async def synthesize_note(
     pages: list[NotePage],
     instructions: Optional[str],
     log=None,
+    flair_directives: Optional[list[str]] = None,
 ) -> Optional[NoteSynthesis]:
     """Run the holistic synthesis pass over a note's raw material.
 
@@ -228,7 +255,7 @@ async def synthesize_note(
     Shared by the live `SynthesizeNoteStep` and the data migration so both
     produce identical output.
     """
-    source = _compose_synthesis_prompt(transcript, pages)
+    source = _compose_synthesis_prompt(transcript, pages, flair_directives)
     if not source:
         return None
     try:
@@ -274,11 +301,14 @@ class SynthesizeNoteStep(
         self, ctx: GraphRunContext[MathNotesState, MathNotesWorkflowDependencies]
     ) -> End[MathNotesState]:
         log = ctx.deps.logger.for_stage("SynthesizeNoteStep")
+        if ctx.deps.flair_directives:
+            await log.info(f"applying {len(ctx.deps.flair_directives)} flair directive(s)")
         synthesis = await synthesize_note(
             ctx.state.transcript,
             ctx.state.pages,
             ctx.deps.synthesis_instructions,
             log,
+            flair_directives=ctx.deps.flair_directives,
         )
         ctx.state.synthesis = synthesis
         if synthesis is None:
