@@ -6,3 +6,4 @@
 export type { DailyNoteArtifact, NotePage, NoteSynthesis, MediaRef } from "./types";
 export { notesClient, mediaSrc, mediaRefUrl } from "./client";
 export { downscaleImage } from "./image";
+export { NOTE_FLAIRS, type NoteFlairKey } from "./flairs";

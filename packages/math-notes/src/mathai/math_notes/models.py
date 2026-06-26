@@ -11,6 +11,7 @@ job is how a `DailyNoteArtifact` comes to exist.
 from __future__ import annotations
 
 from datetime import date
+from enum import Enum
 from typing import Literal, Optional
 
 from pydantic import ConfigDict, Field
@@ -19,13 +20,29 @@ from ai_platform.jobs.input import BaseJobInput
 from ai_platform.jobs.result import BaseJobResult
 
 
+class NoteFlair(str, Enum):
+    """A learner directive attached to a note that steers the synthesis.
+
+    A flair is a structured, first-class instruction (vs. one buried in the
+    transcript) the synthesis pass MUST honor — it overrides the default
+    silent-corrector behavior. The directive *text* for each flair lives in the
+    prompt registry as `math_notes.flair.<value>` (deployed via
+    `aiplatform deploy-prompts` from `instructions/flair/<value>.md`) and is
+    fetched at synthesis time, so the wording is tunable without a redeploy;
+    this enum is just the typed, validated set of keys the UI offers.
+    """
+
+    dont_spoil = "dont_spoil"
+
+
 class MathNotesInput(BaseJobInput):
     """Submit input for a `math_notes` ingest job.
 
     `audio_ref` is the voice note to transcribe (a `storage_ref` from the
     `POST /media` response); `image_refs` are optional notebook photos
     captured alongside it. `note_date` defaults to today (resolved in the
-    graph node) when omitted.
+    graph node) when omitted. `flairs` are learner directives that steer the
+    synthesis (e.g. `dont_spoil` — don't finish/reveal an unfinished exercise).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -40,6 +57,10 @@ class MathNotesInput(BaseJobInput):
     )
     note_date: Optional[date] = Field(None, description="Study day; defaults to today.")
     created_by: Optional[str] = Field(None, description="The learner capturing the note.")
+    flairs: list[NoteFlair] = Field(
+        default_factory=list,
+        description="Learner directives steering the synthesis (e.g. dont_spoil).",
+    )
 
 
 class MathNotesResult(BaseJobResult):
