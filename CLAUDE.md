@@ -188,3 +188,109 @@ because math-ui was down. Confirm reachability from *inside* the worker:
   (`manifest.py`).
 - `docs/math-conversation.md` — example of a full domain design proposal.
 - Memory: `math-app-platform-split`, `math-app-feature-roadmap`.
+
+
+## NEXT topic, remind me w start here please
+
+Implement a Markdown + math rendering migration for daily notes.
+
+Context:
+- daily_note artifacts store the main document at synthesis.markdown.
+- The database/schema should remain unchanged: synthesis.markdown stays a string.
+- Existing notes use LaTeX delimiters:
+  - inline: \( ... \)
+  - display: \[ ... \]
+- New notes should use one canonical Markdown-math format:
+  - inline: $...$
+  - display: $$...$$
+- The current frontend Latex component renders math but does not parse Markdown, so headings such as ##, bold text, and normal Markdown structure display literally.
+
+Please make the following changes.
+
+1. In-place migration for existing stored notes
+
+Create a safe, idempotent backend migration or one-off migration command that updates existing daily_note records in place.
+
+For every artifact where synthesis.markdown is a non-empty string:
+
+- Convert inline delimiters:
+  - \( becomes $
+  - \) becomes $
+- Convert display delimiters:
+  - \[ becomes $$
+  - \] becomes $$
+- Do not alter any other artifact fields.
+- Do not alter records without synthesis.markdown.
+- Make the migration safe to run more than once. After the first conversion, rerunning it should produce no further changes.
+- Log/report:
+  - number of artifacts scanned
+  - number updated
+  - number skipped
+  - failures with artifact IDs, without stopping the whole migration
+- Follow the repository’s existing conventions for DB access, migrations, scripts, transactions, and JSON/JSONB updates.
+- Prefer a dry-run mode if that fits existing project conventions.
+
+Before writing the migration, inspect how daily_note artifacts and the synthesis object are persisted. Do not invent a new table, schema column, or storage layer.
+
+2. Future synthesis generation
+
+Update the prompt/schema/instructions used to generate synthesis.markdown so all future notes use standard Markdown plus dollar-delimited TeX.
+
+Add rules equivalent to:
+
+Write clean GitHub-style Markdown.
+
+Math formatting:
+- Use $...$ for inline math.
+- Use $$...$$ for display math, with the opening and closing delimiters on their own lines.
+- Never use \( ... \), \[ ... \], raw HTML, Unicode superscripts/subscripts as math substitutes, or fragmented math across lines.
+- Keep TeX source valid and readable.
+
+Generated content should look conceptually like:
+
+## Cosets
+
+Let $G$ be a group and $H \le G$ a subgroup.
+
+$$
+gH = \{\, gh : h \in H \,\}.
+$$
+
+**Claim.** $N \trianglelefteq G$ if and only if $gN = Ng$ for every $g \in G$.
+
+3. Frontend rendering
+
+Replace the current LaTeX-only rendering path for synthesis.markdown with standard React Markdown rendering plus KaTeX math support.
+
+Use this minimal conventional stack:
+- react-markdown
+- remark-math
+- rehype-katex
+- katex
+
+Only add remark-gfm if existing notes actually need GitHub-flavored Markdown features such as tables or task lists.
+
+Requirements:
+- Do not use dangerouslySetInnerHTML.
+- Import KaTeX CSS once in the appropriate app-level or component-level location for this codebase.
+- Preserve current typography, layout conventions, and Tailwind styling.
+- Headings, bold text, paragraphs, lists, inline math, and display math must render correctly.
+- Do not break the transcript or raw-page fallback views.
+- Do not retain a custom Markdown parser unless the repository already has a strong reason for one.
+
+4. Validation
+
+Add focused tests if this repository has test infrastructure:
+
+- Existing \( ... \) and \[ ... \] note content migrates to $...$ and $$...$$.
+- The migration is idempotent.
+- Markdown headings and bold text render as semantic HTML.
+- Inline and display TeX render through KaTeX.
+- Existing artifacts with no synthesis.markdown remain unchanged.
+
+At the end, summarize:
+1. files changed
+2. how to run the migration
+3. whether a dry run is available
+4. any existing records that could not be migrated
+5. package additions
