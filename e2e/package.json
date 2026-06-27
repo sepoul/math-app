@@ -1,0 +1,18 @@
+{
+  "name": "math-ui-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Manual Playwright smoke suite for math-ui (mock + live projects). Not wired into CI; not part of the math-ui build context.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:mock": "playwright test --project=mock",
+    "test:live": "playwright test --project=live",
+    "report": "playwright show-report",
+    "fixtures": "node scripts/make-fixtures.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^20.19.0"
+  }
+}

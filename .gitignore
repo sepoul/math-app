@@ -14,6 +14,11 @@ node_modules/
 out/
 *.tsbuildinfo
 
+# e2e (Playwright) — manual smoke suite, outputs only (fixtures are committed)
+e2e/test-results/
+e2e/playwright-report/
+e2e/.last-run.json
+
 # uv
 uv.lock
 
