@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  * what artifacts actually emit (paragraphs, bold/em, lists, headings,
  * inline code, fenced code, links, blockquotes).
  */
-const COMPONENTS: Components = {
+export const COMPONENTS: Components = {
   p: ({ children }) => (
     <p className="text-sm leading-relaxed [&:not(:first-child)]:mt-2">
       {children}

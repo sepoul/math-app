@@ -11,6 +11,7 @@ export { LoadingCard, ErrorCard, EmptyCard } from "./status-card";
 export { LinkCard } from "./link-card";
 export { FieldList, FieldBadge, type FieldRow } from "./field-list";
 export { Markdown } from "./markdown";
+export { MarkdownMath } from "./markdown-math";
 export { Latex } from "./latex";
 export { Figure } from "./figure";
 export type {

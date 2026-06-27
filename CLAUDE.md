@@ -188,3 +188,18 @@ because math-ui was down. Confirm reachability from *inside* the worker:
   (`manifest.py`).
 - `docs/math-conversation.md` — example of a full domain design proposal.
 - Memory: `math-app-platform-split`, `math-app-feature-roadmap`.
+
+
+## Recently shipped
+
+- **Daily-notes Markdown + `$`-math migration** (PR #10, branch
+  `fix/markdown-latex`). `daily_note.synthesis.markdown` moved from
+  KaTeX-delimited LaTeX (`\(...\)` / `\[...\]`) to canonical Markdown + `$`/`$$`
+  math, rendered as real Markdown (headings/bold/lists) via a new
+  `math-ui/components/library/markdown-math.tsx` (`react-markdown` +
+  `remark-math` + `rehype-katex`). Schema unchanged (`markdown` stays a `str`).
+  In-place migration: `packages/math-notes/scripts/migrate_synthesis_delimiters.py`
+  (dry-run default, `--apply`). The synthesis prompt now emits `$`-math and the
+  `validate-latex` route regex matches both old and new delimiters. Full plan +
+  rollout notes in `docs/daily-notes-markdown-migration.md`. **Don't re-pick
+  this up — it's done.**
