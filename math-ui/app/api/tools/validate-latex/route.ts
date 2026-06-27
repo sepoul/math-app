@@ -8,13 +8,14 @@ import katex from "katex";
  *
  * - `"inline"` / `"block"` — `latex` is a bare math expression; pass
  *   it straight to KaTeX with the matching `displayMode`.
- * - `"document"` (default) — `latex` is mixed prose + LaTeX, with
- *   `\(...\)` for inline and `\[...\]` for block math. The route
- *   splits on those delimiters and validates each math segment in
- *   isolation; prose is ignored. Returns the first failing segment
- *   with its index so the agent can locate the issue. This is what
- *   the `validate_latex` tool sends after the agent generates a full
- *   markdown answer.
+ * - `"document"` (default) — `latex` is mixed prose + math. Both
+ *   delimiter styles are recognised: canonical `$...$` inline / `$$...$$`
+ *   block (what synthesis now emits) and legacy `\(...\)` / `\[...\]`
+ *   (older notes / other agents). The route splits on those delimiters
+ *   and validates each math segment in isolation; prose is ignored.
+ *   Returns the first failing segment with its index so the agent can
+ *   locate the issue. This is what the `validate_latex` tool sends after
+ *   the agent generates a full markdown answer.
  *
  * Response: `{ valid: true }` or
  * `{ valid: false, error, segment?, segment_index? }`.
@@ -25,7 +26,14 @@ interface RequestBody {
   mode?: "inline" | "block" | "document";
 }
 
-const SEGMENT_RE = /\\\((.+?)\\\)|\\\[([\s\S]+?)\\\]/g;
+// Mirrors `components/library/latex.tsx`'s SEGMENT_RE so the validator sees
+// exactly the segments the renderer will. Order matters: `$$` before single
+// `$`, otherwise the lazier `$` pattern eats both dollars. The inline `$`
+// form requires a non-`$`/newline interior so "$5 and $10" doesn't match.
+//   group 1: $$...$$   (block)    group 3: \(...\)   (inline, legacy)
+//   group 2: \[...\]   (block)    group 4: $...$     (inline)
+const SEGMENT_RE =
+  /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\((.+?)\\\)|\$(\S(?:[^$\n]*?\S)?)\$/g;
 
 interface MathSegment {
   value: string;
@@ -36,9 +44,13 @@ function extractMathSegments(source: string): MathSegment[] {
   const out: MathSegment[] = [];
   for (const match of source.matchAll(SEGMENT_RE)) {
     if (match[1] !== undefined) {
-      out.push({ value: match[1], displayMode: false });
+      out.push({ value: match[1], displayMode: true }); // $$...$$
     } else if (match[2] !== undefined) {
-      out.push({ value: match[2], displayMode: true });
+      out.push({ value: match[2], displayMode: true }); // \[...\]
+    } else if (match[3] !== undefined) {
+      out.push({ value: match[3], displayMode: false }); // \(...\)
+    } else if (match[4] !== undefined) {
+      out.push({ value: match[4], displayMode: false }); // $...$
     }
   }
   return out;

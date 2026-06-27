@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Latex } from "@/components/library";
+import { MarkdownMath } from "@/components/library";
 import { mediaSrc, type DailyNoteArtifact } from "@/lib/domains/math-notes";
 import { NotePhotos } from "./note-photos";
 
@@ -32,7 +32,7 @@ export function NoteView({ note }: { note: DailyNoteArtifact }) {
       )}
 
       {hasSynthesis ? (
-        <Latex className="text-sm">{synthesis!.markdown!}</Latex>
+        <MarkdownMath className="text-sm">{synthesis!.markdown!}</MarkdownMath>
       ) : note.transcript ? (
         <p className="whitespace-pre-wrap text-sm">{note.transcript}</p>
       ) : (
