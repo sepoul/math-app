@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+# compiled output of `npm test` (tsconfig.test.json → node:test)
+/tests/.build
 
 # next.js
 /.next/

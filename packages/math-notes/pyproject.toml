@@ -1,6 +1,6 @@
 [project]
 name = "mathai-math-notes"
-version = "0.2.4"
+version = "0.2.5"
 description = "math_notes domain — daily-notes ingest. A learner uploads a voice note (+ optional notebook photos) via POST /media; this job transcribes the audio and faithfully extracts each photo, then runs one holistic Opus synthesis pass over the whole note to reconstruct the intended math. Persists one storage_ref-backed DailyNoteArtifact document carrying the transcript, raw page children, and a note-level synthesis. Ships in the `default` worker runtime."
 requires-python = ">=3.13"
 

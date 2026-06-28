@@ -5,9 +5,15 @@ Existing notes store their synthesis with KaTeX-style LaTeX delimiters
 (`\(...\)` inline, `\[...\]` display). The canonical Markdown-math format the
 frontend now renders (real Markdown + KaTeX) uses dollar delimiters
 (`$...$` inline, `$$...$$` display). This script rewrites the **content** of
-`synthesis.markdown` in place for every existing `daily_note`:
+both `synthesis.markdown` AND each `synthesis.sections[].markdown` (the
+sectioned shape from epic #14) in place for every existing `daily_note`:
 
   \(  ->  $       \)  ->  $       \[  ->  $$      \]  ->  $$
+
+It is the free, no-LLM repair for the issue #33 drift, where an interior
+section's display math was emitted as `\[…\]` (renders raw) — the sections
+coverage matters because the bad math usually lives in a `sections[]` entry
+while the flat `markdown` is clean.
 
 Nothing else is touched. The database schema is unchanged — `synthesis.markdown`
 stays a `str`, so there is no version coupling: this runs against any deployed
@@ -46,27 +52,14 @@ from ai_platform.jobs.artifact_service import ArtifactService
 from ai_platform.workspace.storage.backends import make_backend
 from mathai.math_notes.artifacts import MATH_NOTES_ARTIFACTS, DailyNoteArtifact
 
-# The four legacy delimiters → their dollar equivalents. Each is replaced
-# independently; the search strings are disjoint so replacement order is
-# irrelevant, and the spec is literal: `\(`→`$`, `\)`→`$`, `\[`→`$$`, `\]`→`$$`.
-_DELIMITERS: tuple[tuple[str, str], ...] = (
-    (r"\(", "$"),
-    (r"\)", "$"),
-    (r"\[", "$$"),
-    (r"\]", "$$"),
-)
+# The delimiter conversion (`\(`→`$`, `\)`→`$`, `\[`→`$$`, `\]`→`$$`) lives in
+# the domain (`mathai.math_notes.text`) so this repair migration and the live
+# synthesis path share ONE proven, idempotent implementation. Re-exported here
+# under the historical name so callers/tests keep referring to
+# `migrate.convert_delimiters`.
+from mathai.math_notes.text import convert_delimiters
 
-
-def convert_delimiters(markdown: str) -> str:
-    r"""Rewrite legacy LaTeX delimiters to canonical `$`/`$$` math.
-
-    Pure and idempotent: the output contains no `\(`/`\)`/`\[`/`\]`, so
-    re-applying it is a no-op (and content already in `$` form is unchanged).
-    """
-    out = markdown
-    for old, new in _DELIMITERS:
-        out = out.replace(old, new)
-    return out
+__all__ = ["convert_delimiters", "main"]
 
 
 def _build_service() -> ArtifactService:
@@ -76,27 +69,71 @@ def _build_service() -> ArtifactService:
     return ArtifactService(backend.artifact_repo, registry=MATH_NOTES_ARTIFACTS)
 
 
+def _has_content(value) -> bool:
+    """True when `value` is a non-blank string."""
+    return isinstance(value, str) and bool(value.strip())
+
+
 def _migrate_one(service: ArtifactService, note: DailyNoteArtifact, apply: bool) -> dict:
-    """Migrate a single note. Returns a report record (never raises)."""
+    """Migrate a single note. Returns a report record (never raises).
+
+    Converts BOTH the flat `synthesis.markdown` AND each
+    `synthesis.sections[].markdown` (the sectioned shape from epic #14) — an
+    interior section can carry `\\[…\\]` even when the flat field is clean (that
+    is exactly the issue #33 drift). A note is `updated` if ANY field changed.
+    """
     rec: dict = {"artifact_id": str(note.artifact_id), "note_date": str(note.note_date)}
     try:
-        markdown = note.synthesis.markdown if note.synthesis else None
-        if not isinstance(markdown, str) or not markdown.strip():
+        synthesis = note.synthesis
+        if synthesis is None:
             rec["status"] = "skipped"
             rec["reason"] = "no synthesis.markdown"
             return rec
 
-        converted = convert_delimiters(markdown)
-        if converted == markdown:
+        # Nothing with text to convert at all → same "skipped" terminal state as
+        # before (keeps the migration a no-op on empty/transcript-only notes).
+        section_markdowns = [s.markdown for s in synthesis.sections]
+        if not _has_content(synthesis.markdown) and not any(
+            _has_content(sm) for sm in section_markdowns
+        ):
+            rec["status"] = "skipped"
+            rec["reason"] = "no synthesis.markdown"
+            return rec
+
+        # Compute conversions; a field "changes" only if its converted form
+        # differs (idempotent — clean fields are untouched).
+        changed_markdown = False
+        new_markdown = synthesis.markdown
+        if _has_content(synthesis.markdown):
+            new_markdown = convert_delimiters(synthesis.markdown)
+            changed_markdown = new_markdown != synthesis.markdown
+
+        changed_sections: list[int] = []
+        new_section_markdowns: list[str] = []
+        for i, sm in enumerate(section_markdowns):
+            converted = convert_delimiters(sm) if _has_content(sm) else sm
+            new_section_markdowns.append(converted)
+            if _has_content(sm) and converted != sm:
+                changed_sections.append(i)
+
+        if not changed_markdown and not changed_sections:
             # Already canonical (or no legacy delimiters present) → idempotent.
             rec["status"] = "skipped"
             rec["reason"] = "no legacy delimiters"
             return rec
 
+        rec["changed"] = {
+            "markdown": changed_markdown,
+            "sections": changed_sections,
+        }
         if apply:
-            # Mutate only the markdown content; every other field is preserved,
-            # and `put` upserts by the same artifact_id (created_at intact).
-            note.synthesis.markdown = converted
+            # Mutate only the markdown content (flat + per-section); every other
+            # field is preserved, and `put` upserts by the same artifact_id
+            # (created_at intact).
+            if changed_markdown:
+                synthesis.markdown = new_markdown
+            for i in changed_sections:
+                synthesis.sections[i].markdown = new_section_markdowns[i]
             service.put(note)
             rec["status"] = "updated"
         else:

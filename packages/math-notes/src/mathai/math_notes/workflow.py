@@ -47,6 +47,7 @@ from mathai.math_notes.artifacts import (
     TopicKind,
 )
 from mathai.math_notes.state import MathNotesState
+from mathai.math_notes.text import convert_delimiters
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ai_platform.ai.providers.audio import AudioInterpreter
@@ -354,11 +355,16 @@ def _resolved_depth(
 
 
 def _normalize_sections(raw_sections: list["NoteSection"]) -> list[NoteSection]:
-    """Drop fully-empty model sections, strip text, coerce concepts to `str`."""
+    """Drop fully-empty model sections, strip text, coerce concepts to `str`.
+
+    Each section's markdown is also delimiter-normalized (`convert_delimiters`)
+    so a model that slipped into `\\[…\\]` / `\\(…\\)` despite the prompt still
+    persists canonical `$`/`$$` math (issue #33).
+    """
     return [
         NoteSection(
             heading=(sec.heading or "").strip(),
-            markdown=(sec.markdown or "").strip(),
+            markdown=convert_delimiters((sec.markdown or "").strip()),
             concepts=[str(c) for c in sec.concepts],
         )
         for sec in raw_sections
@@ -439,12 +445,17 @@ async def _single_pass_synthesis(
     try:
         out = await _run_synthesis_agent(source, instructions)
         sections = _normalize_sections(out.sections)
+        # Deterministically canonicalize delimiters before persisting: even with
+        # the `$`/`$$`-only prompt, the model occasionally emits `\[…\]`/`\(…\)`,
+        # which remark-math renders raw. `convert_delimiters` is pure/idempotent,
+        # so valid `$`-math is untouched (issue #33).
+        markdown = convert_delimiters((out.markdown or "").strip())
         # Carry the depth the model rendered at; fall back to the plan's
         # content-assessed depth (else the measured density) so a synthesis
         # always reports a depth when we know one.
         depth_tier = out.depth_tier or _resolved_depth(magnitude, plan)
         return NoteSynthesis(
-            markdown=(out.markdown.strip() or None),
+            markdown=(markdown or None),
             concepts=[str(c) for c in out.concepts],
             summary=(out.summary.strip() or None),
             sections=sections,
@@ -510,11 +521,13 @@ async def _synthesize_segment(
     focus = (
         f'FOCUS: This note covers several topics. Write up ONLY this one — "{label}"'
         f"{kind_clause}{span_clause}. Produce a single focused section of clean "
-        "Markdown prose + `$`/`$$` math for just this topic. Do NOT emit a `##` "
-        "heading (it is supplied separately) and do NOT write up the other topics. "
-        "Reconstruct the intended math correctly and validate the LaTeX as "
-        "instructed. Return the section body in `markdown` and the concepts it "
-        "touches in `concepts`."
+        "Markdown prose for just this topic. Use ONLY `$...$` for inline math and "
+        "`$$...$$` for display math — NEVER `\\(...\\)` or `\\[...\\]` (they render "
+        "raw). Do NOT emit a `##` heading (it is supplied separately) and do NOT "
+        "write up the other topics. Reconstruct the intended math correctly and "
+        "validate the LaTeX as instructed, ensuring no `\\[`/`\\]`/`\\(`/`\\)` "
+        "remain. Return the section body in `markdown` and the concepts it touches "
+        "in `concepts`."
     )
     source = _compose_synthesis_prompt(
         transcript,
@@ -526,7 +539,10 @@ async def _synthesize_segment(
     if not source:
         return None
     out = await _run_synthesis_agent(source, instructions)
-    body = (out.markdown or "").strip()
+    # Belt-and-suspenders against per-segment delimiter drift (issue #33): the
+    # prompt forbids `\[…\]`/`\(…\)`, but normalize deterministically too so a
+    # slipped segment can't reach the stitched doc.
+    body = convert_delimiters((out.markdown or "").strip())
     if not body:
         return None
     section = NoteSection(
@@ -734,7 +750,10 @@ async def _segmented_synthesis(
         return None
 
     ordered, summary, concepts = await _reduce_segments(sections, note_context, log)
-    flat_markdown = _stitch_markdown(ordered)
+    # The `ordered` sections are already delimiter-normalized (per-segment), so
+    # the stitch is too; normalize once more on the joined doc as a cheap final
+    # guard so the persisted flat `markdown` can never carry `\[…\]` (issue #33).
+    flat_markdown = convert_delimiters(_stitch_markdown(ordered))
     if log is not None:
         await log.info(
             f"segmented synthesis: stitched {len(ordered)} section(s), "

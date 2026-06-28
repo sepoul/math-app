@@ -24,11 +24,11 @@
 
 [package]
 name    = "mathai-math-notes"
-version = "0.2.4"
+version = "0.2.5"
 runtime = "default"
 # Path is recorded for `deploy`; `declare-artifacts` never reads the file, so
 # it's fine for this to not exist yet during the contract-first step.
-wheel   = "dist/mathai_math_notes-0.2.4-py3-none-any.whl"
+wheel   = "dist/mathai_math_notes-0.2.5-py3-none-any.whl"
 
 [control]
 domain               = "math_notes"
