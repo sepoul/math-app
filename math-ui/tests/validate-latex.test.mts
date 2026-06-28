@@ -15,6 +15,7 @@ import {
   validateLatex,
   findLegacyDelimiter,
   findStrayMath,
+  findUnfencedDisplay,
 } from "../app/api/tools/validate-latex/validate.js";
 
 // ---- markdown mode: the issue #33 close-out ----
@@ -68,6 +69,32 @@ test("markdown mode still KaTeX-compiles the `$` segments (catches bad TeX)", ()
   assert.equal(res.segment_index, 0);
 });
 
+// ---- markdown mode: glued multi-line $$ display (issue #33, 2nd trigger) ----
+
+test("markdown mode REJECTS a glued multi-line `$$ … $$` display block", () => {
+  const doc = "Result:\n\n$$i_{\\alpha}^{\\beta} \\colon A \\to B, \\qquad\nj \\colon B \\to C.$$";
+  const res = validateLatex(doc, "markdown");
+  assert.equal(res.valid, false);
+  assert.match(res.error ?? "", /own line/);
+});
+
+test("markdown mode ACCEPTS a properly fenced multi-line `$$` block", () => {
+  const doc = "Result:\n\n$$\ni_{\\alpha}^{\\beta} \\colon A \\to B, \\qquad\nj \\colon B \\to C.\n$$";
+  assert.deepEqual(validateLatex(doc, "markdown"), { valid: true });
+});
+
+test("markdown mode ACCEPTS a single-line `$$x$$` (renders fine)", () => {
+  assert.deepEqual(validateLatex("inline-ish $$x^2$$ display", "markdown"), {
+    valid: true,
+  });
+});
+
+test("document mode does NOT require `$$` fencing (math_qa unaffected)", () => {
+  // <Latex> handles multi-line `$$` fine, so document mode must not flag it.
+  const doc = "$$a, \\qquad\nb.$$";
+  assert.deepEqual(validateLatex(doc, "document"), { valid: true });
+});
+
 // ---- document mode: math_qa back-compat MUST be preserved ----
 
 test("document mode STILL accepts `\\[ … \\]` (math_qa render target)", () => {
@@ -118,4 +145,13 @@ test("findStrayMath ignores math inside `$`, flags it outside", () => {
   assert.equal(findStrayMath("bad \\frac{a}{b} here"), "\\frac");
   // Markdown escapes (backslash + punctuation) are not flagged.
   assert.equal(findStrayMath("a \\* b \\_ c \\# d"), null);
+});
+
+test("findUnfencedDisplay flags glued multi-line, allows fenced + single-line", () => {
+  assert.equal(findUnfencedDisplay("$$x$$"), null); // single-line is fine
+  assert.equal(findUnfencedDisplay("$$\nx\ny\n$$"), null); // properly fenced
+  assert.equal(findUnfencedDisplay("$$x\ny$$"), "$$x\ny$$"); // both glued
+  assert.equal(findUnfencedDisplay("$$x\ny\n$$"), "$$x\ny\n$$"); // opener glued
+  assert.equal(findUnfencedDisplay("$$\nx\ny$$"), "$$\nx\ny$$"); // closer glued
+  assert.equal(findUnfencedDisplay("no display here, just $inline$"), null);
 });

@@ -62,6 +62,9 @@ const LEGACY_DELIMITER_RE = /\\[[\]()]/;
 // them — only genuine TeX commands.
 const STRAY_MATH_RE = /\\[a-zA-Z]+|[\^_]\{/;
 
+// A `$$…$$` display span (non-greedy, spans newlines).
+const DISPLAY_SPAN_RE = /\$\$([\s\S]+?)\$\$/g;
+
 function tryRender(value: string, displayMode: boolean): string | null {
   try {
     katex.renderToString(value, {
@@ -123,6 +126,30 @@ export function findStrayMath(source: string): string | null {
   return m ? m[0] : null;
 }
 
+/**
+ * The first multi-line `$$…$$` display block whose `$$` delimiters are NOT on
+ * their own lines, or `null`. A `$$` glued to its first content line that then
+ * spans a newline is mis-lexed by micromark as single-line text math and
+ * renders raw (issue #33); a single-line `$$…$$` renders fine and a properly
+ * fenced `$$\n…\n$$` is what we want. Returns the offending block (truncated).
+ * Exported for tests.
+ */
+export function findUnfencedDisplay(source: string): string | null {
+  DISPLAY_SPAN_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = DISPLAY_SPAN_RE.exec(source)) !== null) {
+    const inner = m[1];
+    if (!inner.includes("\n")) continue; // single-line display is fine
+    const openFenced = /^[ \t]*\n/.test(inner); // `$$` then newline
+    const closeFenced = /\n[ \t]*$/.test(inner); // newline then `$$`
+    if (!openFenced || !closeFenced) {
+      const block = m[0];
+      return block.length > 70 ? block.slice(0, 70) + "…" : block;
+    }
+  }
+  return null;
+}
+
 function validateDocument(latex: string): ValidationResult {
   const segments = extractDocumentSegments(latex);
   if (segments.length === 0) {
@@ -160,7 +187,21 @@ function validateMarkdown(latex: string): ValidationResult {
       return { valid: false, error, segment: segments[i].value, segment_index: i };
     }
   }
-  // 3. Math-like content OUTSIDE any `$`/`$$` delimiter would render raw.
+  // 3. A multi-line `$$…$$` glued to its content renders raw even though the
+  //    inner math compiles — require the `$$` fences on their own lines.
+  const unfenced = findUnfencedDisplay(latex);
+  if (unfenced != null) {
+    return {
+      valid: false,
+      error:
+        "Found a multi-line `$$…$$` display block whose `$$` delimiters are not " +
+        "on their own lines (`" +
+        unfenced.replace(/\n/g, "\\n") +
+        "`). A `$$` glued to its content is mis-rendered as raw text — put the " +
+        "opening and closing `$$` each on its own line (`$$` / the math / `$$`).",
+    };
+  }
+  // 4. Math-like content OUTSIDE any `$`/`$$` delimiter would render raw.
   const stray = findStrayMath(latex);
   if (stray != null) {
     return {

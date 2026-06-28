@@ -14,6 +14,8 @@
   },
   "include": [
     "tests/validate-latex.test.mts",
-    "app/api/tools/validate-latex/validate.ts"
+    "tests/normalize-markdown-math.test.mts",
+    "app/api/tools/validate-latex/validate.ts",
+    "components/library/normalize-markdown-math.ts"
   ]
 }
