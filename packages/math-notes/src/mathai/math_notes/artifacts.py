@@ -224,6 +224,31 @@ class NoteMagnitude(BaseModel):
         )
 
 
+class NoteSection(BaseModel):
+    """One topical section of a note's synthesis — a heading, its prose+math,
+    and the concepts it touches.
+
+    The structured counterpart to the flat `markdown` blob: a multi-topic study
+    session can render as one `NoteSection` per topic (each its own
+    KaTeX-validated Markdown + concepts) instead of collapsing into a single
+    block. Additive — short, single-topic notes leave `sections` empty and keep
+    using the flat `markdown` field. Populating these is the adaptive/segmented
+    synthesis pass's job (epic #14, S4); this story (S5) just owns the shape.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    heading: str = Field(
+        "", description="Short topical heading for the section (e.g. a `##` title)."
+    )
+    markdown: str = Field(
+        "", description="Prose + embedded KaTeX-validated LaTeX for this section."
+    )
+    concepts: List[str] = Field(
+        default_factory=list, description="Mathematical concepts this section touches."
+    )
+
+
 class NoteSynthesis(BaseModel):
     """The note-level synthesis — one coherent, always-correct view of the math.
 
@@ -231,6 +256,13 @@ class NoteSynthesis(BaseModel):
     `markdown` is prose with embedded KaTeX-validated LaTeX (document mode);
     `concepts` and `summary` are note-level. Never reproduces an error the
     learner made — it reconstructs the intended math silently.
+
+    Enriched (epic #14, S5) so a substantial session is more than one flat blob:
+    `sections` carries per-topic structure, `depth_tier` marks how deep the
+    synthesis rendered, and `magnitude` embeds the fused density signal the
+    depth was scaled to. All three are additive (optional / default-empty) — the
+    flat `markdown` stays the canonical field for short notes and back-compat,
+    and rows written before the enrichment hydrate unchanged.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -243,6 +275,27 @@ class NoteSynthesis(BaseModel):
     )
     summary: Optional[str] = Field(
         None, description="A short prose summary of the note."
+    )
+    # --- enrichment (additive, epic #14 / S5) --------------------------------
+    # Per-topic structure for substantial sessions. Empty for short notes, which
+    # keep using the flat `markdown` above. Filled by the adaptive synthesis
+    # pass (S4); the flat `markdown` remains the back-compat / short-note field.
+    sections: List[NoteSection] = Field(
+        default_factory=list,
+        description="Per-topic sections for a multi-topic note (empty for short notes).",
+    )
+    # How deep this synthesis was rendered — the same brief|standard|deep
+    # vocabulary as `NoteMagnitude.density_tier`, so the depth chosen lines up
+    # with the measured density. `None` when not set (old rows, short notes).
+    depth_tier: Optional[DensityTier] = Field(
+        None,
+        description="Depth the synthesis rendered at (brief|standard|deep); None if unset.",
+    )
+    # The fused density signal this synthesis was scaled to — embedded here so a
+    # consumer of the synthesis has the magnitude inline (it is also persisted
+    # top-level on `DailyNoteArtifact.magnitude`). Reuses S1's `NoteMagnitude`.
+    magnitude: Optional[NoteMagnitude] = Field(
+        None, description="Density signal the synthesis depth was scaled to (S1's NoteMagnitude)."
     )
     model_used: Optional[str] = Field(
         None, description="The model that produced the synthesis."
@@ -265,7 +318,8 @@ class DailyNoteArtifact(BaseArtifact):
     (optional with defaults) so old rows — written before the redesign — still
     hydrate under the current class. `schema_version` is the migration's
     idempotency marker: old rows default to 1; the document redesign is 2; rows
-    carrying `magnitude` are 3.
+    carrying `magnitude` (and the enriched, section-capable `synthesis` shape)
+    are 3.
     """
 
     artifact_type: Literal["daily_note"] = "daily_note"
@@ -303,10 +357,18 @@ class DailyNoteArtifact(BaseArtifact):
     )
 
     # Additive idempotency marker. 1 = pre-redesign; 2 = document redesign
-    # (pages + synthesis inline); 3 = carries `magnitude`. Old rows default to 1
-    # and hydrate fine — every bump only added optional fields.
+    # (pages + synthesis inline); 3 = carries `magnitude` AND the enriched,
+    # section-capable `synthesis` shape (sections + depth_tier + embedded
+    # magnitude). The S5 synthesis enrichment rides on 3 rather than minting a 4:
+    # it only adds optional fields and ships no backfill that populates them, so
+    # nothing needs re-versioning. The next bump (to 4) belongs to the migration
+    # that actually *populates* sections — the adaptive re-synthesis pass (S4,
+    # #18) — where a fresh idempotency marker is meaningful. Old rows default to
+    # 1 and hydrate fine — every bump only added optional fields.
     schema_version: int = Field(
-        default=1, ge=1, description="Document shape version (1=pre-redesign, 2=document, 3=magnitude)."
+        default=1,
+        ge=1,
+        description="Document shape version (1=pre-redesign, 2=document, 3=magnitude + enriched synthesis).",
     )
 
 
