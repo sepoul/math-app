@@ -1,6 +1,6 @@
 [project]
 name = "mathai-math-conversation"
-version = "0.1.1"
+version = "0.1.2"
 description = "math_conversation domain — multi-persona CrewAI panel that brainstorms a math question turn by turn, producing one MathConversationArtifact transcript. Ships in the `crewai` worker runtime."
 requires-python = ">=3.13"
 

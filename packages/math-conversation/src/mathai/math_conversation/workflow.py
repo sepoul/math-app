@@ -185,7 +185,11 @@ class RunCrewStep(BaseNode[MathConversationState, MathConversationDeps]):
                 "get_prompt resolver missing on deps — cannot load personae/skills "
                 "from the prompt registry (deploy with `aiplatform deploy-prompts`)"
             )
-        panel = build_panel(get_prompt=ctx.deps.get_prompt)
+        # `build_panel` does a synchronous prompt-registry read per persona/skill
+        # (`get_prompt` -> psycopg). Run it off the event loop so a slow query
+        # can't freeze this single-job worker — same offload as `crew.kickoff`
+        # below. See issue #12 (domain half of ai-platform#57/#58).
+        panel = await asyncio.to_thread(build_panel, get_prompt=ctx.deps.get_prompt)
         emitter = CrewChatEmitter(ctx.deps.logger, turns_budget=ctx.state.max_turns)
 
         # Roll call — UI shows each panelist joining before the first turn.
