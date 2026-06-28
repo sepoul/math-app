@@ -32,7 +32,13 @@ from pydantic import BaseModel, Field
 from pydantic_graph import BaseNode, End, Graph, GraphRunContext
 
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
-from mathai.math_notes.artifacts import NoteMagnitude, NotePage, NoteSynthesis
+from mathai.math_notes.artifacts import (
+    DensityTier,
+    NoteMagnitude,
+    NotePage,
+    NoteSection,
+    NoteSynthesis,
+)
 from mathai.math_notes.state import MathNotesState
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -196,7 +202,16 @@ class ExtractPagesStep(
 
 # Agent output for the synthesis pass — the cleaned-up, KaTeX-validated math.
 class _SynthesisOutput(BaseModel):
-    """Agent output: the note-level synthesis (validated markdown + concepts)."""
+    """Agent output: the note-level synthesis (validated markdown + concepts).
+
+    `sections` and `depth_tier` are the enrichment seam (epic #14, S5): the
+    model *may* return per-topic sections and the depth it rendered at. Both
+    default empty/None, so the contract is back-compatible with the current
+    synthesis prompt (which asks only for the flat fields) — the prompt that
+    actually drives sectioned output ships with the adaptive pass (S4, #18).
+    `magnitude` is NOT here: it is measured from the note's signals, not
+    produced by the model, and is embedded onto `NoteSynthesis` by the caller.
+    """
 
     markdown: str = Field(
         default="",
@@ -206,6 +221,14 @@ class _SynthesisOutput(BaseModel):
         default_factory=list, description="Mathematical concepts the note touches."
     )
     summary: str = Field(default="", description="A short prose summary of the note.")
+    sections: list[NoteSection] = Field(
+        default_factory=list,
+        description="Per-topic sections for a multi-topic note (empty for a short note).",
+    )
+    depth_tier: Optional[DensityTier] = Field(
+        default=None,
+        description="Depth the synthesis rendered at (brief|standard|deep); omit if unsure.",
+    )
     validation_attempts: int = Field(
         default=1, ge=0, description="How many validate_latex calls before converging."
     )
@@ -260,6 +283,8 @@ async def synthesize_note(
     instructions: Optional[str],
     log=None,
     flair_directives: Optional[list[str]] = None,
+    *,
+    magnitude: Optional[NoteMagnitude] = None,
 ) -> Optional[NoteSynthesis]:
     """Run the holistic synthesis pass over a note's raw material.
 
@@ -269,6 +294,11 @@ async def synthesize_note(
     silently producing the correct version. Returns `None` when there's
     nothing to synthesize, or when the agent / math-ui validator is
     unavailable (best-effort enrichment must never fail the ingest).
+
+    `magnitude` (when the caller has measured it) is embedded on the result and
+    seeds `depth_tier` when the model didn't pick one — so the synthesis carries
+    the density signal it was scaled to. Keyword-only and optional, so the
+    migration's positional call is unaffected.
 
     Shared by the live `SynthesizeNoteStep` and the data migration so both
     produce identical output.
@@ -293,10 +323,28 @@ async def synthesize_note(
         )
         result = await agent.run(user_prompt=source)
         out = result.output
+        # Normalize the model's sections — drop fully-empty ones, strip text.
+        sections = [
+            NoteSection(
+                heading=sec.heading.strip(),
+                markdown=sec.markdown.strip(),
+                concepts=[str(c) for c in sec.concepts],
+            )
+            for sec in out.sections
+            if (sec.heading or "").strip()
+            or (sec.markdown or "").strip()
+            or sec.concepts
+        ]
+        # Carry the depth the model rendered at; fall back to the measured
+        # density tier so a synthesis always reports a depth when we know one.
+        depth_tier = out.depth_tier or (magnitude.density_tier if magnitude else None)
         return NoteSynthesis(
             markdown=(out.markdown.strip() or None),
             concepts=[str(c) for c in out.concepts],
             summary=(out.summary.strip() or None),
+            sections=sections,
+            depth_tier=depth_tier,
+            magnitude=magnitude,
             model_used=SYNTHESIS_MODEL,
             validation_attempts=out.validation_attempts,
         )
@@ -336,6 +384,7 @@ class SynthesizeNoteStep(
             ctx.deps.synthesis_instructions,
             log,
             flair_directives=ctx.deps.flair_directives,
+            magnitude=ctx.state.magnitude,
         )
         ctx.state.synthesis = synthesis
         if synthesis is None:
@@ -343,8 +392,10 @@ class SynthesizeNoteStep(
         else:
             await log.info(
                 f"synthesized note: {len(synthesis.markdown or '')} chars, "
+                f"{len(synthesis.sections)} section(s), "
                 f"{len(synthesis.concepts)} concept(s), "
-                f"{synthesis.validation_attempts} validate_latex call(s)"
+                + (f"depth={synthesis.depth_tier}, " if synthesis.depth_tier else "")
+                + f"{synthesis.validation_attempts} validate_latex call(s)"
             )
         return End(ctx.state)
 
