@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 from pydantic_graph import BaseNode, End, Graph, GraphRunContext
 
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
-from mathai.math_notes.artifacts import NotePage, NoteSynthesis
+from mathai.math_notes.artifacts import NoteMagnitude, NotePage, NoteSynthesis
 from mathai.math_notes.state import MathNotesState
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -104,18 +104,27 @@ class TranscribeNoteStep(
         )
 
         transcript: Optional[str] = None
+        duration_seconds: Optional[float] = None
         if ctx.deps.interpreter is not None and ctx.deps.audio_ref:
             # Blocking work (HTTP download + OpenAI). Offload to a thread so the
             # graph's event loop isn't blocked.
             result = await asyncio.to_thread(
                 ctx.deps.interpreter.transcribe, ctx.deps.audio_ref
             )
+            # Keep the whole TranscriptionResult, not just `.text`: `.duration`
+            # is a (minor) magnitude signal we'd otherwise discard. Often None —
+            # the default transcription model doesn't surface it.
             transcript = result.text
-            await log.info(f"transcribed {len(transcript)} chars")
+            duration_seconds = result.duration
+            await log.info(
+                f"transcribed {len(transcript)} chars"
+                + (f", {duration_seconds:.1f}s audio" if duration_seconds else "")
+            )
 
         ctx.state.audio_ref = ctx.deps.audio_ref
         ctx.state.image_refs = ctx.deps.image_refs
         ctx.state.transcript = transcript
+        ctx.state.audio_duration_seconds = duration_seconds
         ctx.state.note_date = resolved_date
         ctx.state.created_by = ctx.deps.created_by
         return ExtractPagesStep()
@@ -151,27 +160,36 @@ class ExtractPagesStep(
         if interpreter is None or not refs:
             reason = "no image_interpreter wired" if interpreter is None else "no photos"
             await log.info(f"skipping page extraction ({reason})")
-            return SynthesizeNoteStep()
+        else:
+            await log.info(f"extracting {len(refs)} page(s)")
+            page_prompt = ctx.deps.page_instructions  # None → generic vision prompt
 
-        await log.info(f"extracting {len(refs)} page(s)")
-        page_prompt = ctx.deps.page_instructions  # None → generic vision prompt
+            def _extract(image_ref: str, page_index: int) -> NotePage:
+                # Blocking (HTTP download + vision call); runs in a worker thread.
+                result = interpreter.interpret(image_ref, prompt=page_prompt)
+                return NotePage(
+                    page_index=page_index,
+                    image_ref=image_ref,
+                    raw_text=(result.text or None),
+                )
 
-        def _extract(image_ref: str, page_index: int) -> NotePage:
-            # Blocking (HTTP download + vision call); runs in a worker thread.
-            result = interpreter.interpret(image_ref, prompt=page_prompt)
-            return NotePage(
-                page_index=page_index,
-                image_ref=image_ref,
-                raw_text=(result.text or None),
+            pages = await asyncio.gather(
+                *(asyncio.to_thread(_extract, ref, i) for i, ref in enumerate(refs))
+            )
+            ctx.state.pages = list(pages)
+            await log.info(
+                f"extracted {len(ctx.state.pages)} page(s); "
+                f"{sum(len(p.raw_text or '') for p in ctx.state.pages)} chars total"
             )
 
-        pages = await asyncio.gather(
-            *(asyncio.to_thread(_extract, ref, i) for i, ref in enumerate(refs))
-        )
-        ctx.state.pages = list(pages)
-        await log.info(
-            f"extracted {len(ctx.state.pages)} page(s); "
-            f"{sum(len(p.raw_text or '') for p in ctx.state.pages)} chars total"
+        # Both modalities are now on state — fuse them (with audio duration)
+        # into the one magnitude signal. `image_ref_count` keeps page_count
+        # honest when extraction was skipped (no vision helper) but photos exist.
+        ctx.state.magnitude = NoteMagnitude.from_signals(
+            transcript=ctx.state.transcript,
+            pages=ctx.state.pages,
+            image_ref_count=len(ctx.state.image_refs),
+            duration_seconds=ctx.state.audio_duration_seconds,
         )
         return SynthesizeNoteStep()
 
@@ -301,6 +319,15 @@ class SynthesizeNoteStep(
         self, ctx: GraphRunContext[MathNotesState, MathNotesWorkflowDependencies]
     ) -> End[MathNotesState]:
         log = ctx.deps.logger.for_stage("SynthesizeNoteStep")
+        mag = ctx.state.magnitude
+        if mag is not None:
+            await log.info(
+                f"note magnitude: {mag.density_tier} "
+                f"({mag.transcript_chars} transcript chars, {mag.page_count} page(s), "
+                f"{mag.page_chars} page chars"
+                + (f", {mag.duration_seconds:.1f}s" if mag.duration_seconds else "")
+                + ")"
+            )
         if ctx.deps.flair_directives:
             await log.info(f"applying {len(ctx.deps.flair_directives)} flair directive(s)")
         synthesis = await synthesize_note(
@@ -349,8 +376,9 @@ def _extract_math_notes_result(state: MathNotesState):
         image_refs=state.image_refs,
         transcript=state.transcript,
         pages=state.pages,
+        magnitude=state.magnitude,
         synthesis=state.synthesis,
-        schema_version=2,
+        schema_version=3,
     )
     # `_run_persist` has already extended `state.artifact_refs` with the minted
     # DailyNoteArtifact id by the time this runs (job_runner: persist → extract
