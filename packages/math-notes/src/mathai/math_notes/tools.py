@@ -1,4 +1,4 @@
-"""Agent tools for the math_notes page-parse step.
+"""Agent tools for the math_notes synthesis step.
 
 `validate_latex` round-trips content through the math-ui Next.js endpoint
 (`POST /api/tools/validate-latex`), where KaTeX runs with
@@ -9,6 +9,13 @@ tool of the same name: the two domains ship as separate wheels into
 domain would couple their install graphs. The client is ~30 lines; the
 copy keeps each domain self-contained (see `docs/math-conversation.md` →
 the same "duplicate the thin client" call).
+
+Unlike the math_qa copy, this one defaults to `mode="markdown"`: the
+synthesis output renders via **remark-math** (`markdown-math.tsx`), which
+only lexes `$...$` / `$$...$$`. That mode is render-aware — it rejects
+leftover `\\(...\\)` / `\\[...\\]` and math-like content outside any `$`
+delimiter — so a note can no longer pass validation while rendering raw
+(issue #33).
 
 The endpoint URL is read from `UI_TOOL_API_URL` (in compose:
 `http://math-ui:7860`; default `http://localhost:3000` for bare-metal
@@ -30,7 +37,7 @@ _TIMEOUT_SECONDS = 10.0
 class LatexValidationResult(BaseModel):
     valid: bool
     error: Optional[str] = None
-    # Populated when `mode="document"` and a specific math segment failed —
+    # Populated when a `document`/`markdown` math segment failed to compile —
     # lets the agent locate the issue without re-scanning.
     segment: Optional[str] = None
     segment_index: Optional[int] = None
@@ -42,14 +49,18 @@ def _ui_url() -> str:
 
 async def validate_latex(
     latex: str,
-    mode: Literal["inline", "block", "document"] = "document",
+    mode: Literal["inline", "block", "document", "markdown"] = "markdown",
 ) -> LatexValidationResult:
     """Validate KaTeX-compilable content via the math-ui server.
 
-    `mode="document"` (default): `latex` is markdown with `\\(...\\)` /
-    `\\[...\\]` math delimiters; each math segment is validated
-    independently and prose is ignored. `mode="inline"` / `"block"`:
-    `latex` is a bare math expression.
+    `mode="markdown"` (default): `latex` is the synthesis Markdown document,
+    destined for the remark-math renderer. Each `$...$` / `$$...$$` segment is
+    KaTeX-validated, AND the document is rejected if it still contains
+    `\\(...\\)` / `\\[...\\]` or math-like content outside any `$` delimiter
+    (which would render raw). `mode="document"`: same per-segment validation but
+    also accepts legacy `\\(...\\)` / `\\[...\\]` delimiters (the `<Latex>`
+    render target). `mode="inline"` / `"block"`: `latex` is a bare math
+    expression.
 
     Returns `{valid: true}` on success, else `{valid: false, error,
     segment?, segment_index?}` — the agent reads `error` (and `segment`)

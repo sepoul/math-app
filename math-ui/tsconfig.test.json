@@ -1,0 +1,21 @@
+{
+  "//": "Compiles the validate-latex core + its node:test suite to tests/.build so `npm test` can run them (Node 20 can't strip TS types). Kept separate from the app tsconfig: nodenext emit (CJS .js / ESM .mjs per extension) so the compiled test imports the compiled module and katex resolves from node_modules.",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "rootDir": ".",
+    "outDir": "tests/.build",
+    "noEmit": false,
+    "types": ["node"]
+  },
+  "include": [
+    "tests/validate-latex.test.mts",
+    "tests/normalize-markdown-math.test.mts",
+    "app/api/tools/validate-latex/validate.ts",
+    "components/library/normalize-markdown-math.ts"
+  ]
+}

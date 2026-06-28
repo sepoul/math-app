@@ -5,6 +5,7 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { COMPONENTS } from "./markdown";
+import { normalizeMarkdownMath } from "./normalize-markdown-math";
 
 /**
  * Markdown renderer with KaTeX math, for content that mixes real Markdown
@@ -21,6 +22,12 @@ import { COMPONENTS } from "./markdown";
  * `<Latex>` is still the right tool for unvalidated, prose-with-math strings
  * that are NOT Markdown (conversation turns, latex playground); this is for
  * full Markdown documents.
+ *
+ * `children` is run through `normalizeMarkdownMath` first: a code-aware
+ * pre-process that converts legacy `\(...\)` / `\[...\]` delimiters and
+ * flow-fences glued `$$` display blocks BEFORE remark-math parses, so stored
+ * notes affected by the issue #33 drift render correctly with no data
+ * migration. Code blocks / inline code are left verbatim.
  */
 export function MarkdownMath({
   children,
@@ -36,7 +43,7 @@ export function MarkdownMath({
         rehypePlugins={[rehypeKatex]}
         components={COMPONENTS}
       >
-        {children}
+        {normalizeMarkdownMath(children)}
       </ReactMarkdown>
     </div>
   );
