@@ -1,7 +1,8 @@
 """Math-notes graph state — threads the uploaded refs + note metadata from
 input, through the transcription node (which fills `transcript`), the
-extraction node (which fills `pages` with faithful per-photo text), and the
-synthesis node (which fills `synthesis`), into `_persist`."""
+extraction node (which fills `pages` with faithful per-photo text), the assess
+node (which fills `plan`), and the synthesis node (which fills `synthesis`),
+into `_persist`."""
 from __future__ import annotations
 
 from datetime import date
@@ -10,7 +11,12 @@ from typing import Optional
 from pydantic import Field
 
 from ai_platform.jobs.base_state import BaseJobState
-from mathai.math_notes.artifacts import NoteMagnitude, NotePage, NoteSynthesis
+from mathai.math_notes.artifacts import (
+    NoteMagnitude,
+    NotePage,
+    NoteSynthesis,
+    SynthesisPlan,
+)
 
 
 class MathNotesState(BaseJobState):
@@ -25,6 +31,9 @@ class MathNotesState(BaseJobState):
     pages: list[NotePage] = Field(default_factory=list)
     # Fused multi-modal density signal, computed at the end of extraction.
     magnitude: Optional[NoteMagnitude] = None
+    # Filled by AssessNoteStep — the cheap triage plan (authoritative density
+    # read) that scales synthesis; None when assessment was unavailable.
+    plan: Optional[SynthesisPlan] = None
     # Filled by SynthesizeNoteStep — the note-level cleaned-up math.
     synthesis: Optional[NoteSynthesis] = None
     note_date: Optional[date] = None
