@@ -1,12 +1,16 @@
-"""Math-notes ingest graph — transcribe, extract, synthesize.
+"""Math-notes ingest graph — transcribe, extract, assess, synthesize.
 
-Three nodes, split into faithful **extraction** then holistic **synthesis**:
+Four nodes: faithful **extraction**, then a cheap **assess/triage**, then
+holistic **synthesis**:
 
-    TranscribeNoteStep → ExtractPagesStep → SynthesizeNoteStep → End
+    TranscribeNoteStep → ExtractPagesStep → AssessNoteStep → SynthesizeNoteStep → End
 
 `TranscribeNoteStep` transcribes the voice note (platform `AudioInterpreter`).
 `ExtractPagesStep` vision-transcribes each notebook photo *faithfully* — raw
-text only, zero interpretation (no LaTeX, no concepts). `SynthesizeNoteStep`
+text only, zero interpretation (no LaTeX, no concepts). `AssessNoteStep` runs a
+CHEAP model over the transcript + page text and produces a `SynthesisPlan`
+(topics, depth tier, segment boundaries, stated study scope) — the authoritative
+content-density read that S4 will use to scale synthesis. `SynthesizeNoteStep`
 then runs ONE holistic Opus pass over the transcript + every page's raw text
 and reconstructs the intended math as a note-level `NoteSynthesis` — a
 semantic neighbour of the (fuzzy) notes, not a blind mirror, KaTeX-validated.
@@ -26,7 +30,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import date
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, get_args
 
 from pydantic import BaseModel, Field
 from pydantic_graph import BaseNode, End, Graph, GraphRunContext
@@ -38,6 +42,9 @@ from mathai.math_notes.artifacts import (
     NotePage,
     NoteSection,
     NoteSynthesis,
+    PlanTopic,
+    SynthesisPlan,
+    TopicKind,
 )
 from mathai.math_notes.state import MathNotesState
 
@@ -81,6 +88,11 @@ class MathNotesWorkflowDependencies:
     image_interpreter: Optional["ImageInterpreter"] = None
     page_instructions: Optional[str] = None
     synthesis_instructions: Optional[str] = None
+    # Optional override for the assess/triage prompt. `None` (the default — the
+    # `deps_factory` doesn't set it) falls back to the inline `ASSESS_INSTRUCTIONS`
+    # constant, so the triage pass needs no prompt-registry entry to work. Kept as
+    # a seam so the wording can later move to the registry like the others.
+    assess_instructions: Optional[str] = None
     # Resolved flair directive bodies (loaded from the registry per the note's
     # `flairs` in deps_factory) — injected into the synthesis prompt as
     # learner directives that override the silent-corrector default.
@@ -158,7 +170,7 @@ class ExtractPagesStep(
 
     async def run(
         self, ctx: GraphRunContext[MathNotesState, MathNotesWorkflowDependencies]
-    ) -> "SynthesizeNoteStep":
+    ) -> "AssessNoteStep":
         log = ctx.deps.logger.for_stage("ExtractPagesStep")
         interpreter = ctx.deps.image_interpreter
         refs = ctx.state.image_refs
@@ -197,7 +209,7 @@ class ExtractPagesStep(
             image_ref_count=len(ctx.state.image_refs),
             duration_seconds=ctx.state.audio_duration_seconds,
         )
-        return SynthesizeNoteStep()
+        return AssessNoteStep()
 
 
 # Agent output for the synthesis pass — the cleaned-up, KaTeX-validated math.
@@ -354,6 +366,214 @@ async def synthesize_note(
         return None
 
 
+# --- assess / triage pass (S3) -----------------------------------------------
+
+# The assess/triage model — a CHEAP read of the note *before* synthesis. Claude
+# Haiku 4.5 (`claude-haiku-4-5`): the assessment is a lightweight structured read
+# of a short (2–7 min) transcript + a few pages of text — enumerate the distinct
+# topics, pick a depth tier, note any stated study scope — NOT the deep
+# reconstruction the Opus synthesis pass does, so the cheapest current model is
+# the right tier. At ~$1/$5 per MTok it is ~5× cheaper in/out than the Opus
+# synthesis call, and the pass adds just one short call per note. See the PR for
+# the full cost rationale.
+ASSESS_MODEL = "claude-haiku-4-5"
+
+# Inline default prompt for the assessor. Kept in-module (not in the prompt
+# registry) so the triage pass is self-contained and needs no deploy-prompts
+# step; `deps.assess_instructions` can override it later without a code change.
+ASSESS_INSTRUCTIONS = """You triage a learner's daily math study notes.
+
+You are given the raw material from ONE study session: a voice-note transcript \
+and/or faithful transcriptions of notebook pages. You do NOT rewrite or correct \
+the math — a separate pass does that. Your only job is to READ the material and \
+plan how it should be written up.
+
+A note is short (the learner spoke for a few minutes) but may summarize anywhere \
+from a few minutes to several hours of study. Judge how much it contains by its \
+CONTENT — how many distinct topics/problems, how much math, how many pages — not \
+by length alone.
+
+Produce:
+- topics: every distinct topic, problem, or thread the session covers. For each, \
+give a short title, a kind (one of: exercise, concept, proof, definition, \
+example, dead_end, breakthrough, review, other), and a span_hint saying where it \
+appears (e.g. "transcript opening", "pages 1-2").
+- depth_tier: how deep the write-up should go — "brief" (a light or single-topic \
+note), "standard" (a typical session), or "deep" (a dense, multi-topic, or long \
+session).
+- suggested_sections: how many sections the write-up should have (>= 1; roughly \
+one per major topic).
+- segment_boundaries: short cues marking natural transitions between topics, for \
+splitting a long note into chunks. Leave empty for a single-topic note.
+- study_scope_hint: if the learner STATES how long or how much they studied \
+(e.g. "I spent the afternoon on this, about 4 hours"), capture it here. Leave \
+empty if unstated.
+- rationale: one or two sentences on why you chose this depth and structure.
+
+Be faithful to what is actually there. A terse single-exercise note is "brief" \
+with one topic; do not invent topics or inflate depth."""
+
+
+# Lenient agent output — plain strings/ints with defaults so a slightly
+# off-shape model response still parses; `_plan_from_output` then normalizes it
+# into the typed `SynthesisPlan` contract.
+class _AssessTopic(BaseModel):
+    title: str = Field(default="", description="Short title for the topic.")
+    kind: str = Field(default="other", description="Kind of material (exercise, concept, …).")
+    span_hint: str = Field(default="", description="Where in the note it appears.")
+
+
+class _AssessOutput(BaseModel):
+    """Agent output for the triage pass — the raw plan before normalization."""
+
+    topics: list[_AssessTopic] = Field(default_factory=list)
+    depth_tier: str = Field(default="standard", description="brief | standard | deep.")
+    suggested_sections: int = Field(default=1, description="Sections the synthesis should have.")
+    segment_boundaries: list[str] = Field(default_factory=list)
+    study_scope_hint: str = Field(default="", description="Stated study scope, if any.")
+    rationale: str = Field(default="", description="Why this depth/structure.")
+
+
+_VALID_DEPTH_TIERS = set(get_args(DensityTier))  # {"brief", "standard", "deep"}
+_VALID_TOPIC_KINDS = set(get_args(TopicKind))
+
+
+def _clean(value: Optional[str]) -> Optional[str]:
+    """Trim a string; map empty/whitespace to None (the "unstated" sentinel)."""
+    value = (value or "").strip()
+    return value or None
+
+
+def _plan_from_output(out: "_AssessOutput", model: str) -> SynthesisPlan:
+    """Normalize the lenient agent output into the typed `SynthesisPlan`.
+
+    Clamps `depth_tier`/`kind` to their valid sets (unknown → standard / other),
+    floors `suggested_sections` at 1, drops blank topics/boundaries, and stamps
+    `model_used`. Pure — no engine deps — so it is unit-testable without a model
+    call.
+    """
+    topics: list[PlanTopic] = []
+    for t in out.topics:
+        title = (t.title or "").strip()
+        if not title:
+            continue
+        kind = (t.kind or "other").strip().lower()
+        if kind not in _VALID_TOPIC_KINDS:
+            kind = "other"
+        topics.append(PlanTopic(title=title, kind=kind, span_hint=_clean(t.span_hint)))
+
+    depth = (out.depth_tier or "").strip().lower()
+    if depth not in _VALID_DEPTH_TIERS:
+        depth = "standard"
+
+    sections = out.suggested_sections if isinstance(out.suggested_sections, int) else 1
+    sections = max(sections, 1)
+
+    boundaries = [b.strip() for b in (out.segment_boundaries or []) if b and b.strip()]
+
+    return SynthesisPlan(
+        topics=topics,
+        depth_tier=depth,  # type: ignore[arg-type] — normalized to a valid DensityTier
+        suggested_sections=sections,
+        segment_boundaries=boundaries,
+        study_scope_hint=_clean(out.study_scope_hint),
+        rationale=_clean(out.rationale),
+        model_used=model,
+    )
+
+
+async def _run_assess_agent(
+    source: str, instructions: Optional[str], model: str
+) -> "_AssessOutput":
+    """Run the cheap triage agent over the note's raw material.
+
+    Isolated from `assess_note` so tests can stub the model call, and so the
+    `pydantic_ai` / `basic_agent` import stays lazy (off the control plane)."""
+    from ai_platform.ai.providers.basic_agent import basic_agent
+
+    agent = basic_agent(
+        model=model,
+        output_type=_AssessOutput,
+        instructions=instructions,
+        retries=1,
+    )
+    result = await agent.run(user_prompt=source)
+    return result.output
+
+
+async def assess_note(
+    transcript: Optional[str],
+    pages: list[NotePage],
+    instructions: Optional[str] = None,
+    log=None,
+    model: str = ASSESS_MODEL,
+) -> Optional[SynthesisPlan]:
+    """Cheaply READ a note and produce a `SynthesisPlan` (best-effort triage).
+
+    Runs a CHEAP model over the same transcript + page text the synthesis pass
+    sees and returns how the note should be written up: distinct topics, a depth
+    tier, segment boundaries, and any study scope the learner stated. This is the
+    authoritative density read (S3) — a short note can summarize hours of study,
+    which duration can't reveal.
+
+    Returns `None` when there's nothing to assess, or on ANY failure — never
+    raises (mirrors `synthesize_note`'s degrade pattern), so it can never fail
+    the ingest; the caller then falls back to current single-pass synthesis.
+    Shared by the live `AssessNoteStep` and tests.
+    """
+    # Same raw-material composition as synthesis (no flair directives — flairs
+    # steer the write-up, not the triage).
+    source = _compose_synthesis_prompt(transcript, pages)
+    if not source:
+        return None
+    try:
+        out = await _run_assess_agent(source, instructions or ASSESS_INSTRUCTIONS, model)
+        return _plan_from_output(out, model)
+    except Exception as exc:  # noqa: BLE001 — triage must never fail the ingest
+        if log is not None:
+            await log.warning(f"note assessment unavailable ({exc}); proceeding without a plan")
+        return None
+
+
+@dataclass
+class AssessNoteStep(
+    BaseNode[MathNotesState, MathNotesWorkflowDependencies, MathNotesState]
+):
+    """Cheap triage pass → a `SynthesisPlan` on state (best-effort).
+
+    Reads the transcript + page text with a cheap model and records how the note
+    should be synthesized (topics, depth tier, segments, stated study scope).
+    Never fails the ingest: on any failure `assess_note` returns `None` and
+    synthesis falls back to its current single-pass behavior. S4 will consume the
+    plan; for now it is produced, persisted on state, and logged.
+    """
+
+    stage_label = "Assess note"
+    stage_description = "Cheaply triage the note into a SynthesisPlan (topics + depth tier)"
+
+    async def run(
+        self, ctx: GraphRunContext[MathNotesState, MathNotesWorkflowDependencies]
+    ) -> "SynthesizeNoteStep":
+        log = ctx.deps.logger.for_stage("AssessNoteStep")
+        plan = await assess_note(
+            ctx.state.transcript,
+            ctx.state.pages,
+            ctx.deps.assess_instructions,
+            log,
+        )
+        ctx.state.plan = plan
+        if plan is None:
+            await log.info("no synthesis plan produced (no source, or assessor unavailable)")
+        else:
+            await log.info(
+                f"synthesis plan: depth={plan.depth_tier}, {len(plan.topics)} topic(s), "
+                f"{plan.suggested_sections} section(s), {len(plan.segment_boundaries)} segment(s)"
+                + (f"; study scope: {plan.study_scope_hint!r}" if plan.study_scope_hint else "")
+                + (f" [{plan.model_used}]" if plan.model_used else "")
+            )
+        return SynthesizeNoteStep()
+
+
 @dataclass
 class SynthesizeNoteStep(
     BaseNode[MathNotesState, MathNotesWorkflowDependencies, MathNotesState]
@@ -401,13 +621,14 @@ class SynthesizeNoteStep(
 
 
 math_notes_graph = Graph(
-    nodes=(TranscribeNoteStep, ExtractPagesStep, SynthesizeNoteStep),
+    nodes=(TranscribeNoteStep, ExtractPagesStep, AssessNoteStep, SynthesizeNoteStep),
     state_type=MathNotesState,
 )
 
 math_notes_node_registry: dict[str, type] = {
     "TranscribeNoteStep": TranscribeNoteStep,
     "ExtractPagesStep": ExtractPagesStep,
+    "AssessNoteStep": AssessNoteStep,
     "SynthesizeNoteStep": SynthesizeNoteStep,
 }
 

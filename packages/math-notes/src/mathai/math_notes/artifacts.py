@@ -249,6 +249,93 @@ class NoteSection(BaseModel):
     )
 
 
+# --- synthesis plan (S3 assess/triage contract) ------------------------------
+#
+# `SynthesisPlan` is the output of the cheap assess/triage pass (S3) that *reads*
+# a note before it is synthesized and decides how to treat it: how many distinct
+# topics/problems it covers, how deep to go, where the natural segment
+# boundaries are, and any study scope the learner stated out loud. It is the
+# **authoritative** density read — a short (2–7 min) note can summarize 1–5 h of
+# study, so audio duration (and even the `NoteMagnitude` heuristic) can't tell
+# you this; only reading the content can. It reuses `DensityTier` for
+# `depth_tier` so the plan and the magnitude signal speak the same vocabulary.
+#
+# The plan is threaded on `MathNotesState` and logged; S4 (adaptive/segmented
+# synthesis) will consume it to scale depth/structure. It is an **in-flight**
+# planning struct — NOT persisted on `DailyNoteArtifact` (the enriched synthesis
+# schema is S5's job). Best-effort: the assess step returns `None` on any
+# failure and synthesis falls back to its current single-pass behavior.
+
+TopicKind = Literal[
+    "exercise",
+    "concept",
+    "proof",
+    "definition",
+    "example",
+    "dead_end",
+    "breakthrough",
+    "review",
+    "other",
+]
+
+
+class PlanTopic(BaseModel):
+    """One distinct topic / problem the note covers, as the assessor saw it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(..., description="Short human title for the topic.")
+    kind: TopicKind = Field(
+        "other",
+        description="What kind of material this is (exercise, concept, proof, dead_end, breakthrough, …).",
+    )
+    span_hint: Optional[str] = Field(
+        None,
+        description="Where in the note this topic appears (e.g. 'transcript opening', 'pages 1-2').",
+    )
+
+
+class SynthesisPlan(BaseModel):
+    """Triage of a note, produced by the cheap assess pass (S3) before synthesis.
+
+    The authoritative content-density read that lets synthesis scale depth and
+    structure to how much a note actually holds. `topics` enumerates the distinct
+    threads; `depth_tier` (shared vocabulary with `NoteMagnitude.density_tier`)
+    says how deep to go; `suggested_sections` + `segment_boundaries` shape a
+    map-reduce write-up of a big note; `study_scope_hint` captures any study
+    scope the learner stated out loud ("~4 hours on X"); `rationale` records the
+    reasoning. Threaded on `MathNotesState` and logged; consumed by S4. Not an
+    artifact — never persisted on `DailyNoteArtifact`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    topics: List[PlanTopic] = Field(
+        default_factory=list, description="Distinct topics/problems the note covers."
+    )
+    depth_tier: DensityTier = Field(
+        "standard",
+        description="How deep synthesis should go (content-assessed): brief|standard|deep.",
+    )
+    suggested_sections: int = Field(
+        1, ge=1, description="How many sections the synthesis should produce (>= 1)."
+    )
+    segment_boundaries: List[str] = Field(
+        default_factory=list,
+        description="Short cues marking natural topic transitions, for segmented (map-reduce) synthesis.",
+    )
+    study_scope_hint: Optional[str] = Field(
+        None,
+        description="Study scope the learner stated in the note (e.g. '~4 hours on X'); None if unstated.",
+    )
+    rationale: Optional[str] = Field(
+        None, description="Why the assessor chose this depth/structure."
+    )
+    model_used: Optional[str] = Field(
+        None, description="The cheap model that produced the plan."
+    )
+
+
 class NoteSynthesis(BaseModel):
     """The note-level synthesis — one coherent, always-correct view of the math.
 
