@@ -2,7 +2,7 @@ import { Clock, FileText, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type {
   DensityTier,
-  EnrichedNoteSynthesis,
+  NoteSynthesis,
   NoteMagnitude,
 } from "@/lib/domains/math-notes";
 
@@ -38,7 +38,7 @@ export function MagnitudeBadge({
   synthesis,
   magnitude,
 }: {
-  synthesis: EnrichedNoteSynthesis | null;
+  synthesis: NoteSynthesis | null;
   magnitude: NoteMagnitude | null;
 }) {
   const depth: DensityTier | null =

@@ -1,11 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { MarkdownMath } from "@/components/library";
-import {
-  mediaSrc,
-  type DailyNoteArtifact,
-  type EnrichedNoteSynthesis,
-  type NoteMagnitude,
-} from "@/lib/domains/math-notes";
+import { mediaSrc, type DailyNoteArtifact } from "@/lib/domains/math-notes";
 import { NotePhotos } from "./note-photos";
 import { MagnitudeBadge } from "./note-magnitude-badge";
 
@@ -27,15 +22,11 @@ import { MagnitudeBadge } from "./note-magnitude-badge";
  *      the transcript, so a note never renders empty before the migration runs.
  */
 export function NoteView({ note }: { note: DailyNoteArtifact }) {
-  // The enriched (epic #14 / S5) synthesis fields — `sections`, `depth_tier`,
-  // embedded `magnitude` — and the top-level `magnitude` are not in the SDK
-  // types yet, so read them through the local mirror.
-  // TODO(#20): drop these casts once the SDK is regenerated (see types.ts).
-  const synthesis = (note.synthesis ?? null) as EnrichedNoteSynthesis | null;
-  const magnitude: NoteMagnitude | null =
-    synthesis?.magnitude ??
-    (note as { magnitude?: NoteMagnitude | null }).magnitude ??
-    null;
+  // The synthesis carries the enriched (epic #14 / S5) fields — `sections`,
+  // `depth_tier`, embedded `magnitude`. Prefer the synthesis-embedded magnitude,
+  // falling back to the top-level one for rows that carry it there.
+  const synthesis = note.synthesis ?? null;
+  const magnitude = synthesis?.magnitude ?? note.magnitude ?? null;
 
   const sections = (synthesis?.sections ?? []).filter(
     (s) => s.markdown || s.heading
