@@ -392,6 +392,16 @@ class NoteSynthesis(BaseModel):
     )
 
 
+# Schema version stamped by the adaptive (map-reduce) synthesis pass (S4, #18):
+# rows whose `synthesis` was produced by the section-aware engine — multi-topic
+# notes carry populated `sections`, short notes a single-pass flat view. New
+# ingests stamp this; `scripts/migrate_synthesis_sections.py` re-synthesizes
+# older rows up to it. It is the meaningful idempotency marker S5 reserved for
+# the pass that actually *populates* sections (vs. v3, which only added the
+# optional fields to the shape).
+SECTIONED_SCHEMA_VERSION = 4
+
+
 class DailyNoteArtifact(BaseArtifact):
     """One captured study note, tied to a calendar day — a self-contained document.
 
@@ -446,16 +456,21 @@ class DailyNoteArtifact(BaseArtifact):
     # Additive idempotency marker. 1 = pre-redesign; 2 = document redesign
     # (pages + synthesis inline); 3 = carries `magnitude` AND the enriched,
     # section-capable `synthesis` shape (sections + depth_tier + embedded
-    # magnitude). The S5 synthesis enrichment rides on 3 rather than minting a 4:
-    # it only adds optional fields and ships no backfill that populates them, so
-    # nothing needs re-versioning. The next bump (to 4) belongs to the migration
-    # that actually *populates* sections — the adaptive re-synthesis pass (S4,
-    # #18) — where a fresh idempotency marker is meaningful. Old rows default to
-    # 1 and hydrate fine — every bump only added optional fields.
+    # magnitude) — but those section fields are only *defined*, not populated.
+    # 4 = the synthesis was produced by the adaptive (map-reduce) engine (S4,
+    # #18): multi-topic notes now carry populated `sections`, short notes a
+    # single-pass flat view. This is the fresh marker S5 reserved for the pass
+    # that actually populates sections; new ingests stamp it and
+    # `scripts/migrate_synthesis_sections.py` re-synthesizes older rows to it.
+    # Old rows default to 1 and hydrate fine — every bump only added optional
+    # fields. See `SECTIONED_SCHEMA_VERSION`.
     schema_version: int = Field(
         default=1,
         ge=1,
-        description="Document shape version (1=pre-redesign, 2=document, 3=magnitude + enriched synthesis).",
+        description=(
+            "Document shape version (1=pre-redesign, 2=document, "
+            "3=magnitude + enriched synthesis shape, 4=adaptive/sectioned synthesis)."
+        ),
     )
 
 
