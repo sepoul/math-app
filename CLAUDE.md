@@ -21,6 +21,34 @@ If you're tempted to add a Dockerfile/compose/server to *this* repo for a
 backend domain — don't. The backend ships as a wheel. (The only image this repo
 builds is the `math-ui` Next.js app.)
 
+## How we work: lead-dev control plane (default operating mode)
+
+Default posture for non-trivial work is **control plane, not line coder**: lead
+from product intent, decompose into agile user stories, and let **headless
+workers** do the actual coding while this session stays the cockpit — planning,
+reviewing, merging, deciding. Keep the main session lean; let every change land
+as a reviewed PR.
+
+- **Business-first, feature-first.** Start from the user story and its value, not
+  the diff. When asked to build something, frame it as user stories with
+  acceptance criteria *before* touching code, and confirm the framing.
+- **Issues-first / agile.** Decompose into independent, parallelizable GitHub
+  issues (epic + children) with explicit **contracts/seams** so stories run in
+  parallel. Propose the slate; file with `gh`.
+- **Delegate execution to headless workers.** Regular coding is done by
+  non-interactive background workers — one per issue, each isolated in its own
+  git worktree — not inline here:
+  `claude -p --dangerously-skip-permissions --worktree issue-<N> < prompt.txt &`.
+  Full recipe + the wave/dependency loop: `docs/parallel-agents-runbook.md`.
+- **The control plane owns review, merge, and sequencing.** Review every worker
+  PR before merge (non-negotiable); workers never merge/deploy themselves.
+  Sequence by dependency — merge base contracts first, then fire independent
+  waves, then dependents (workers branch from `origin/main`, so don't fan out
+  dependents off a stale main).
+- **Know when NOT to delegate.** Trivial fixes, tightly-coupled changes, and
+  exploratory/uncertain work are faster done inline — delegation has overhead.
+  Apply the worker pattern to parallelizable, well-specified story work.
+
 ## Layout
 
 ```
