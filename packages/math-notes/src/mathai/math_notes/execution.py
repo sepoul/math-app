@@ -27,7 +27,11 @@ from ai_platform.jobs.execution_policy import (
 from ai_platform.runtime.worker_log import NullLogger, WorkerLogger
 from ai_platform.session.session import PlatformSession
 from ai_platform.workspace.client import PlatformClient
-from mathai.math_notes.artifacts import MATH_NOTES_ARTIFACTS, DailyNoteArtifact
+from mathai.math_notes.artifacts import (
+    MATH_NOTES_ARTIFACTS,
+    SECTIONED_SCHEMA_VERSION,
+    DailyNoteArtifact,
+)
 from mathai.math_notes.state import MathNotesState
 from mathai.math_notes.workflow import (
     MathNotesWorkflowDependencies,
@@ -132,7 +136,7 @@ def build_math_notes_execution(
             pages=state.pages,
             magnitude=state.magnitude,
             synthesis=state.synthesis,
-            schema_version=3,
+            schema_version=SECTIONED_SCHEMA_VERSION,
         )
         artifact_api.put(note)
         return [note.artifact_id]
