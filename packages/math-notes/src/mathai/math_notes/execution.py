@@ -130,8 +130,9 @@ def build_math_notes_execution(
             image_refs=state.image_refs,
             transcript=state.transcript,
             pages=state.pages,
+            magnitude=state.magnitude,
             synthesis=state.synthesis,
-            schema_version=2,
+            schema_version=3,
         )
         artifact_api.put(note)
         return [note.artifact_id]
