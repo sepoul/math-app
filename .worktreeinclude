@@ -1,0 +1,4 @@
+# Gitignored files copied into each new Claude Code worktree.
+# .gitignore syntax; only files that match AND are gitignored are copied
+# (tracked files are never duplicated). See code.claude.com/docs/en/worktrees.
+math-ui/.env.local

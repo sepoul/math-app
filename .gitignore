@@ -26,3 +26,6 @@ uv.lock
 .DS_Store
 .idea/
 .vscode/
+
+# Claude Code worktrees (parallel background sessions check out here)
+.claude/worktrees/
