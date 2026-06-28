@@ -6,6 +6,24 @@
  * standalone package with zero math-ui/platform deps.
  */
 
+type DensityTier = "brief" | "standard" | "deep";
+
+/** Loose mirror of the platform `NoteMagnitude` (enriched synthesis, epic #14). */
+export interface NoteMagnitudeFixture {
+  transcript_chars: number;
+  page_count: number;
+  page_chars: number;
+  density_tier: DensityTier;
+  duration_seconds?: number | null;
+}
+
+/** Loose mirror of the platform `NoteSection` (one topical section). */
+export interface NoteSectionFixture {
+  heading: string;
+  markdown: string;
+  concepts: string[];
+}
+
 /** Loose mirror of the platform `DailyNoteArtifact` (only the fields the UI reads). */
 export interface DailyNoteFixture {
   artifact_id: string;
@@ -28,9 +46,15 @@ export interface DailyNoteFixture {
     markdown?: string | null;
     concepts?: string[];
     summary?: string | null;
+    // Enriched (epic #14 / S5) — additive; absent on flat / old notes.
+    sections?: NoteSectionFixture[];
+    depth_tier?: DensityTier | null;
+    magnitude?: NoteMagnitudeFixture | null;
     model_used?: string | null;
     validation_attempts?: number;
   } | null;
+  // Enriched top-level density signal (schema_version 3); absent on old rows.
+  magnitude?: NoteMagnitudeFixture | null;
   schema_version: number;
 }
 
@@ -86,4 +110,69 @@ export function dailyNote(
     schema_version: 2,
     ...overrides,
   };
+}
+
+/**
+ * Two topical sections for the enriched (epic #14 / S6) render: each carries a
+ * heading, its own `$`-math Markdown, and per-section concepts. The smoke
+ * checks both headings render, the math becomes KaTeX, and the section nav
+ * links resolve to the right anchors.
+ */
+export const SECTION_COSETS: NoteSectionFixture = {
+  heading: "Cosets and Lagrange's theorem",
+  markdown: `A subgroup $H \\le G$ partitions $G$ into **left cosets** $gH$.
+
+$$
+[G : H] = \\frac{|G|}{|H|}
+$$
+`,
+  concepts: ["Cosets", "Lagrange's theorem"],
+};
+
+export const SECTION_CHAIN_RULE: NoteSectionFixture = {
+  heading: "The chain rule",
+  markdown: `For $f(g(x))$ the derivative is $f'(g(x)) \\cdot g'(x)$.
+
+- Differentiate the outer function.
+- Multiply by the derivative of the inner.
+`,
+  concepts: ["Chain rule", "Differentiation"],
+};
+
+/**
+ * A substantial, sectioned, magnitude-aware note (schema_version 3) — the
+ * enriched render path: a "deep" depth tier, multiple topical sections, and a
+ * `NoteMagnitude` the badge reads. Override any field.
+ */
+export function sectionedNote(
+  overrides: Partial<DailyNoteFixture> = {}
+): DailyNoteFixture {
+  const magnitude: NoteMagnitudeFixture = {
+    transcript_chars: 5200,
+    page_count: 6,
+    page_chars: 9100,
+    density_tier: "deep",
+    duration_seconds: 312,
+  };
+  return dailyNote({
+    synthesis: {
+      // Flat markdown stays populated for back-compat; sections take priority.
+      markdown: "## Overview\n\nA dense session across two topics.",
+      concepts: [
+        "Cosets",
+        "Lagrange's theorem",
+        "Chain rule",
+        "Differentiation",
+      ],
+      summary: "A deep session: cosets/Lagrange, then the chain rule.",
+      sections: [SECTION_COSETS, SECTION_CHAIN_RULE],
+      depth_tier: "deep",
+      magnitude,
+      model_used: "claude-opus-mock",
+      validation_attempts: 1,
+    },
+    magnitude,
+    schema_version: 3,
+    ...overrides,
+  });
 }
