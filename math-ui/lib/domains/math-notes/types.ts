@@ -43,10 +43,31 @@ export type DailyNoteArtifact = Required_<
 export type NotePage = S["NotePage"];
 
 /**
- * The note-level synthesis: a coherent markdown document with embedded
- * KaTeX-validated LaTeX, plus note-level `concepts` and a `summary`.
+ * The note-level synthesis: one coherent, always-correct view of the math.
+ * `markdown` is the canonical flat document (prose + KaTeX-validated LaTeX),
+ * with note-level `concepts` and a `summary`. Enriched (epic #14, S5) so a
+ * substantial session is more than one flat blob: `sections` carries per-topic
+ * structure, `depth_tier` marks how deep it rendered, and `magnitude` embeds
+ * the fused density signal the depth was scaled to — all additive, so short or
+ * pre-enrichment notes (flat `markdown` only) stay valid.
  */
 export type NoteSynthesis = S["NoteSynthesis"];
+
+/**
+ * One topical section of an enriched synthesis: a heading, its prose +
+ * KaTeX-validated Markdown, and the concepts it touches.
+ */
+export type NoteSection = S["NoteSection"];
+
+/**
+ * The fused multi-modal density signal a note's synthesis depth was scaled to.
+ * `page_count` is the strongest study-scope proxy; `duration_seconds` is a
+ * minor, often-absent audio signal.
+ */
+export type NoteMagnitude = S["NoteMagnitude"];
+
+/** Coarse content-volume bucket the synthesis depth is keyed off. */
+export type DensityTier = NonNullable<NoteMagnitude["density_tier"]>;
 
 /** Response of `POST /media`. */
 export type MediaRef = S["MediaRef"];
