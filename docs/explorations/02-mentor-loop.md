@@ -256,3 +256,39 @@ book. A spaced keep-alive is the right instrument there; a prescription isn't. I
 own *"don't let the live chapter close with its crux unproven."* Recall owns
 *"don't let the closed book evaporate."* If the bet is durability of work already
 done, build Recall. If it's the reinforcing loop he actually asked for, build me.
+
+## Round 3 — re-fought (spoiler-veto removed)
+
+The platform already ships a `dont_spoil` learner-directive flair
+(`math_notes/models.py:35`) that steers synthesis away from finishing or
+revealing an unfinished exercise. So "no spoilers" is **a solved guarantee, not a
+tightrope I walk.** Rounds 1–2 burned half my breath proving *"a prescription
+withholds the answer."* That's now free. Drop it and read what's left.
+
+**The Mentor at full strength.** With the answer structurally off the table, a
+prescription can be **maximally directive without any risk of over-telling.** The
+night of 06-28 — *"I think next time I will just keep moving and assume I got
+it"* — the synthesized note ends with:
+
+> **⟳ Not yet.** That's the crux of Van Kampen, not a detail. Tonight's move:
+> redo the 3×3 grid by hand (Hatcher §1.2 figure), then **Exercise 1.2.4**. I'll
+> ask Sunday.
+
+No softening, no "if you'd like," no fear of saying too much — the flair already
+guarantees I never hand him the proof. I am free to be a *real* tutor: blunt,
+specific, pointed back into the book, with a closing loop ("I'll ask Sunday").
+This is **verbatim what he asked for** — *"redirect me back in the book… go study
+that section, go do that exercise"* — and it is the one thing the platform's own
+safety rail was built to make safe. The constraint everyone used to handicap me
+turns out to be **the feature that lets me run at full power.**
+
+**The concession, re-examined.** It shrinks to exactly one case. Recall still
+owns **post-Tu decay** — a *closed* book has no next action to prescribe, so
+spaced keep-alive is right there. But inside the **live chapter**, the spoiler
+fear was the only thing that ever made me hedge between "direct him" and "check
+him later." Gone, there's no contest: the directive that catches the abandoned
+crux *the night of* is strictly more re-engaging than a retention probe ten days
+late, and it carries zero spoiler cost. **In the open book, I am now
+unambiguously the reinforcing-loop product** — the others either honor the bluff
+or arrive after he's left the chapter. Recall owns the closed book; I own the one
+that's open on his desk tonight. That's the loop he named, at full strength.
