@@ -197,4 +197,106 @@ re-treads; islands grow bridges at shared landmarks.
   `synthesis.concepts`, clear Tu/Hatcher split, visible re-treads (van Kampen,
   Problem 2.16 revisited Jun 25→26). There's more than enough real terrain to draw a
   map he'll recognize as **his own**, today.
-```
+
+---
+
+## Round 2 — defense & why mine wins
+
+### Rebutting the Skeptic (07), head-on
+
+The Skeptic's sharpest blow: *he already self-locates* — his notes carry the book's
+own coordinates ("Problem 2.16," "§81.5," "21.4"), so a map merely "re-derives
+coordinates he already writes down." **This inverts.** A man who writes "Problem
+2.16" on Monday and "§81.5" on Thursday is recording his position *one point at a
+time, on scattered pages, with no surface that assembles those points into a whole.*
+A column of coordinates is not a map any more than a list of lat/longs is a map —
+the entire act of cartography is turning coordinates you already trust into one
+picture you take in at a glance. He self-locates **locally** and is blind
+**globally**; the Atlas is the only bottle that aggregates his own coordinate-logging
+into the view he has never had.
+
+And that same habit *defeats the Skeptic's second blow.* The "wrong anchor from
+garbled OCR" risk evaporates precisely because I don't infer the anchor from "V.
+european" prose — I read the section number **he wrote.** "Problem 2.16" is a real
+Jun-26 heading in his corpus; his coordinate-logging *is* my anchor. The Skeptic's
+evidence for "he doesn't need a map" is the very thing that makes the map reliable.
+
+The Skeptic's most damaging finding — the twice-stated *"don't spoil, I'm working on
+it"* (06-24, 06-25) — is **friendly fire that lands on the Mentor (02), not on me.**
+The Atlas prescribes nothing; it never says "redo §9.3." If anything that veto is the
+Atlas's strongest endorsement: it proves he wants a tool that *shows without telling.*
+A map respects productive struggle by definition — it draws the mountain; it never
+climbs it for you.
+
+"A single-book map resets to empty when he finishes Tu / he hops across books" is the
+Skeptic arguing *for* me against everyone else. My bet was **never single-book** — it's
+a *multi-book atlas.* Finishing Tu isn't a reset; it's the moment the **second island
+matters most** — he steps off Tu's edge and sees Hatcher already lit beside it and the
+dark sea of candidates (de Rham, Lee). The Skeptic concedes it in plain text: *"the
+cross-book dot-connecting is real and latent… a concept/book substrate is plausibly
+the only thing that surfaces that — and a backward-looking digest won't."* Exactly.
+
+Then I **absorb** his best move. The Wizard-of-Oz weekly digest is smart sequencing,
+and I take it — because its own output ("This week in Tu — Orientation, 4 sessions,
+~80pp to the end") **is the Atlas at zoom-level-zero, one cell rendered as text.** It
+doesn't refute the map; it's the map's cheapest testable slice, and what it tests —
+*does book-anchored, backward-looking visibility change his behavior* — is the **Atlas
+hypothesis specifically**, not the Mentor's or the Recall's. A positive result licenses
+*the map.* So: ship the digest line first, let it earn the pixels.
+
+### Against the five advocates
+
+- **Streak (03)** borrows my terrain to denominate a number — "you can see the summit,"
+  "322/400." But a progress bar is *one-dimensional*: how far, never *where.* It
+  collapses his whole practice to a scalar and structurally cannot draw the group-theory
+  detour, the van-Kampen switchback, or the Tu↔Hatcher strait — spatial relations
+  invisible to a count. Its attack ("an Atlas of 10 notes is a blank map") is false, and
+  the receipt is in the Streak's *own* card: "you entered §21 Orientations," "van Kampen
+  ×4." That **is** map data — it just flattens it to a row. Value at n=10 isn't density
+  (it's right that density is thin); it's **adjacency and edges**, which exist at n=2.
+- **Concept-Web (04)** is my real lane-fight — it claims the determinant-from-four-sides
+  bridge. The difference is one word: *coordinates.* A force-directed graph has no
+  **where**; "the same object from four sides" becomes a star with no geography, unable
+  to show that SL(m) lives in Hatcher's group foothills while the level-set view lives in
+  Tu's orientation country. The Web names "the hairball" as its own top risk — and the
+  hairball is what you get when you discard the order he already reads in. I absorb its
+  best idea: a few typed "Bridges" beat a raw graph — so the Atlas surfaces those same
+  bridges, but as a **labeled strait between two regions you can point at**, which tells
+  him not just *that* two ideas meet but *where.* A map has north; a graph doesn't.
+- **Mentor (02):** its flagship signal ("I'll just assume I got it," 06-28) is real — but
+  its response (assign Ex 1.2.4) is the prescription he forbade. The Atlas renders that
+  same hedge as a **thinly-walked pin on a steep pass**: visibly unfinished, zero
+  instruction. He sees the open switchback and chooses for himself.
+- **Companion (06):** answering "where am I?" in a sentence is not *seeing* where you are.
+  A map gives peripheral awareness and the shape of the dark country at a glance; a chat
+  gives one location, and only if he knows to ask. He "left Lean for feeling like
+  programming," and the Companion lists "blank-box paralysis" as its *own* risk — a map
+  answers the question he never formed. For the *see-where-I-am* job specifically, the
+  glance beats the box.
+- **Recall (05):** a different job (durability), not a competitor — and complementary.
+  The map's thinly-walked steep pins are exactly Recall's highest-value cards. Build the
+  map; let Recall read it.
+
+### My wedge — the one thing only the Atlas does
+
+Every other bottle consumes the trail that *exists* — notes he has already recorded.
+**Only the Atlas renders the unwalked: the negative space, the dark country he has
+*not* been.** And "what do I do after Tu?" — the pivot all seven docs agree is decisive
+— is a question about *absence*: which territory is adjacent, what he can already see
+from the edge. You cannot draw absence with a streak count, a concept he never logged, a
+recall card from a note that doesn't exist, or a chat answer about a trail that ends.
+Real example: his Jun-26 revisit of **Problem 2.16** sits as a lit-but-thin pin at the
+far end of Tu, ringed by the dark final chapters and, past the coastline, the unlit
+candidate continents. Five products can color where he's been; one can show him where he
+*hasn't* — and that is the map he needs precisely now, 80 pages from the edge.
+
+### Honest concession
+
+If the binding constraint is **habit survival** — *will he log tomorrow*, given the real
+3-day gap (06-21→23) — then the **Streak (03) beats me.** The Atlas is a consumption
+surface he opens "now and then"; it fires no reward at the *moment of logging*, which is
+exactly where a two-week-old habit needs one. If we're one missed week from no corpus at
+all, you protect the input before you draw the map. I won't pretend a beautiful map keeps
+a wavering hobbyist logging — it doesn't. But *if the habit holds* (and the 5-day recovery
+streak 06-24→28 says it might), the Atlas is the only one of the seven that answers the
+question he is actually about to ask.
