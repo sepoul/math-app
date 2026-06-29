@@ -165,3 +165,94 @@ authority that makes the directive trustworthy rather than bossy.
   open loops.
 - **2-week corpus.** No disadvantage — the mentor needs only the **last note +
   the book** to prescribe the **next move**, so it delivers value from note one.
+
+## Round 2 — defense & why mine wins
+
+### Rebutting the Skeptic (07)
+
+The Skeptic's whole case against my half (Job B) rests on one reading of *"don't
+spoil — I'm working on it"* (06-24/06-25) as a **veto on a prescriptive tutor.**
+Read the full sentence and it's the opposite — it's my **founding spec**: *"I
+don't wanna be spoiled and I wanna take my time trying to figure it out alone if
+possible."* He is not refusing direction; he is refusing **the answer**. A
+prescription — *"reread Tu's sphere example, then return to 2.16"* — is the exact
+inverse of a spoiler: it points at the next move and withholds the solution. The
+Skeptic conflates *"prescribe an action"* with *"give the answer."* The art of a
+tutor is precisely that distinction, and his plea draws the line for me. I built
+Round 1 on it ("the single non-negotiable constraint").
+
+And the Skeptic *ignores the louder signal in the same corpus*: 06-28, *"I'll
+just keep moving and assume I got it."* That is not productive struggle — it's
+**productive struggle abandoned** at the crux of Van Kampen. The thing the
+Skeptic rightly says he treasures (figuring it out himself) is the very thing
+he's about to give up on. A mentor that says *"not so fast"* **protects** that
+struggle; the Skeptic's own value argues *for* me, not against.
+
+On its strongest structural point — *"there's no moment he consults this; he
+reaches for his phone to record, not to look."* **True, and it's my edge, not my
+wound.** I am not a destination he must visit (that critique lands on Atlas/Web).
+I attach to the **one reliable ritual — recording** — firing the card at its tail
+and greeting the next record with the open loop. I never manufacture a new trip.
+
+On *"wrong anchor from garbled OCR"* (`216`, `V. european`): that risk belongs to
+the **map-matching** bottles (Atlas, Web, Streak) whose signal lives in noisy
+page text. **My triggers live in the clean transcript** — explicit verbal hedges
+(*"assume I got it," "not sure about the correctness," "didn't read the statement
+itself"*). I am the **least** OCR-exposed direction in the slate.
+
+Where the Skeptic is simply right: **test before a big build, n=1.** I concede
+the discipline and absorb it — my MVP *is* that test. One extra LLM pass at
+synthesis emitting **one** prescription is nearly as cheap as its weekly digest,
+and unlike the digest it tests the thing he called *the goal* ("re-engage my
+practice via a reinforcing loop"), not the thing he called *vanity* (backward
+visibility). Run it Wizard-of-Oz for two weeks; measure one number: **did he act
+on the prescription.** That is the cheapest possible test of the actual bet.
+
+### Defending against the five advocates
+
+- **Atlas (01)** concedes me in its own words: *"if looking doesn't pull him back
+  into the book, the Mentor-Loop's 'go do exercise 9.3' wins."* It builds the
+  *"vanity visibility"* he called **step one**; I build the loop he called **the
+  goal.** I steal its best asset, though: at the Tu→next-book switch my
+  transition prescription should borrow the map's adjacency (*"closes naturally
+  into X"*) — but the directive stays mine.
+- **Streak (03)** lands the sharpest punch: it's *upstream of all six* and over-
+  justification is real. I concede it's my dependency (no log → nothing to
+  prescribe). But he's logged **10 months with no app and no reward** — showing
+  up isn't the gap; *what he does once here* is. And the Streak rewards the
+  **log**, which is exactly the over-justification trap it fears; a prescription
+  rewards the **math** (do the exercise) — pointing at the book is the mitigation
+  Streak says it needs, and I do it natively.
+- **Concept-Web (04)** also concedes the behavior axis (*"doesn't itself say go
+  do exercise 9.3 — that's the Mentor's job"*). Its determinant-bridge insight is
+  genuinely real in his corpus; I absorb it as an **action** — *"you've hit the
+  determinant from four sides; prove SL(m) is a regular level set to nail it."*
+- **Recall-Engine (05)** is my dangerous twin — same 06-28 seed. But it waits
+  ~10 days and asks *"can you still say why?"* (retention); I fire **that night**:
+  *"don't move on — do it now"* (progress). The 06-28 case isn't decay, it's
+  **abandonment** — spacing it 10 days out lets him leave the crux first.
+- **Companion (06)** is a lovely surface but it's **pull** — and names its own
+  killer flaw: *"he may never form the question."* By definition of *"I'll assume
+  I got it,"* he will never open a chat about the step he thinks he closed. Only a
+  product that **initiates on the bluff** catches it. The box is delivery; the
+  initiative is mine.
+
+### My wedge (the one thing only I do)
+
+**I intervene on the gap he has decided to abandon.** Every rival either honors
+the bluff (Atlas lights it as *walked*, Streak rewards the *log*, Web *links* it,
+Companion waits to be *asked*) or checks it ten days too late (Recall). Only the
+Mentor turns 06-28's *"I'll just assume I got it"* into *"not yet — redo the 3×3
+grid, then Ex 1.2.4,"* in the moment, answer withheld as he demanded. That is
+verbatim what he asked for: *"redirect me back in the book… go study that section,
+go do that exercise."*
+
+### Honest concession
+
+**Recall-Engine beats me the day he closes Tu.** Once the book is shut, ten
+months of manifolds decays whether or not he ever bluffed — that's pure
+forgetting, and there's no *"next action in the book"* to prescribe for a closed
+book. A spaced keep-alive is the right instrument there; a prescription isn't. I
+own *"don't let the live chapter close with its crux unproven."* Recall owns
+*"don't let the closed book evaporate."* If the bet is durability of work already
+done, build Recall. If it's the reinforcing loop he actually asked for, build me.
