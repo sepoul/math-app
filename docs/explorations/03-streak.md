@@ -184,3 +184,88 @@ That's it. One card, one forgiving counter, one comeback rule. Everything else
 do exercise 9.3" belongs to Mentor-Loop, the idea-graph to Concept-Web, the spaced
 prompts to Recall-Engine. The Streak borrows their data to denominate a number — it
 does not become them.*
+
+## Round 2 — defense & why mine wins
+
+### Rebutting the Skeptic (07) — its pre-mortem ends at my front door
+
+The Skeptic lands real hits, but read where they land. *"He already self-locates"*
+(his notes are titled "Problem 2.16," "§21.4") kills the **Atlas's** "where am I"
+job — not mine; I never claim to tell him where he is in the book, I tell him he
+showed up five days running, which *nothing in his world tells him.* *"Don't spoil…
+I'm working on it, please"* (06-25) and *"I wanna take my time… alone"* (06-24)
+veto the **Mentor / Recall / Companion** — anything that probes, tests, or
+prescribes. **The Streak prescribes nothing and tests nothing.** It is the only
+direction that fully honors his productive-struggle ethic: it celebrates the *act
+of logging* and never touches the math's difficulty. *"The synthesis is already the
+magic"* — agreed, and that's my ally: the synthesis is the **reward I deliver at the
+end of the log.** Magic he doesn't return to receive is wasted; I am the frame that
+brings him back tomorrow.
+
+Then the Skeptic's own words convict it. Its pre-mortem concludes: *"Even the habit
+we're betting on already skipped (06-21→06-23)… **Stabilize and reward the logging
+before we couple a map to it.**"* That sentence **is my product spec.** And the
+cheapest thing it says to build — what the learner *literally asked for*, *"a vanity
+visibility over my progress"* — is a progress view, not a cartographic substrate;
+the Skeptic's own leanest variant ("Tu · Orientation · ~80pp left") is a degenerate
+summit card. Its n=1 caution cuts toward me, not away: you cannot run a four-week
+Wizard-of-Oz digest test on a corpus that died in week three. **I am the only bottle
+that keeps n growing toward the mass all six others silently assume.**
+
+What I *absorb* from it: the 06-20 line — *"not adding a photo this time, the photos
+are huge and they're bugging the application"* — proves the ritual sheds the instant
+friction appears. So the streak must add **zero capture surface**: pure pull at the
+synthesis moment, no notification nagging, nothing new to tend. That's not a wound;
+it's evidence for exactly the fragility I exist to defend, and it tightens my one
+hard constraint.
+
+### Against the five advocates
+
+- **Atlas (#1)** is my closest rival for the "vanity visibility" he named — and it
+  concedes its own core risk: *"the Atlas wagers that orientation alone changes
+  behavior… pretty but inert."* A map you only admire is a poster. **I am the loop
+  that makes him return to look at any surface** — so I *absorb* the Atlas: the
+  lit-territory delta is the best possible **content for my card.** Map without loop
+  is inert; loop without content is hollow. I supply the loop and borrow its visual.
+- **Recall-Engine (#5)** makes the sharpest honest point — for a no-exam hobbyist the
+  long-run enemy is *forgetting*, and that's its lane, not mine. True. But Recall
+  *consumes* aged notes ("two-week-old corpus is thin," it admits) and it's a **test**
+  — the precise thing the "let me struggle alone" learner is escaping ("feels like
+  school — fatal if it nags"). Sequence is everything: **the Streak produces the
+  corpus Recall needs.** Protect the habit first; make it stick once there's mass.
+- **Mentor (#2)** is the most directly vetoed — its whole thesis (prescribe the next
+  move) is the thing he twice told the app *not* to do, and it admits *"a wrong
+  prescription burns trust permanently."* I direct nothing.
+- **Companion (#6)** has the strongest "he already talks to the app" point — *"this is
+  a message for you, synthesists"* (06-25). I *absorb* it: that emotional engagement
+  is exactly why an earnest, personal card ("Day 5, your longest this month — comeback
+  after a 3-day gap") lands as recognition, not a cold counter. But the Companion is
+  **pull** (he reads notes only "now and then") and a new behavior for a pen-and-paper
+  purist who left Lean for feeling like programming. I fire **unprompted**, at a
+  moment he's already in, with zero new muscle.
+- **Concept-Web (#4)** names me as its own conqueror: *"if his real need is behavioral
+  nudging, the Streak or Mentor beats it,"* and it's thinnest at week 2. I *absorb* its
+  best moment — the "you've touched the determinant from four sides" bridge becomes a
+  **milestone event** in my loop.
+
+### My wedge — the one thing only I do
+
+**Every other bottle fights over how to *spend* the corpus; I'm the only one fighting
+to make sure there *is* one.** My KPI is blunt — *did he log tomorrow* — and at
+n=10-over-2-weeks that is the *only* KPI that matters, because the other six are
+worthless on an empty corpus. The proof is in his own data: the **5-day recovery
+streak (06-24→28) after the 3-day gap is completely invisible to him today.** He
+doesn't know he staged a comeback. Not the book, not the synthesis, not a map, not a
+quiz tells him *"you came back, and you've now strung five."* That signal, at that
+brittle moment, is mine alone — and even his *"distracted… 15 minutes"* day (06-24)
+becomes a kept link instead of a near-miss.
+
+### Honest concession
+
+**Recall-Engine beats me outright in one world: if the habit isn't actually
+fragile.** He did ten months with no app and no reward; he logged a distracted
+15-minute day and staged his own comeback *unprompted.* If that intrinsic engine is
+robust, gamifying it is redundant at best and over-justification poison at worst —
+and then the enemy that never goes away is decay, which is Recall's to own, not mine.
+My bet is that a two-week-old habit with a gap and a friction-shed already on its
+record is not yet that engine. If I'm wrong about the fragility, I lose to Recall.
