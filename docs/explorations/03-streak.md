@@ -219,6 +219,13 @@ synthesis moment, no notification nagging, nothing new to tend. That's not a wou
 it's evidence for exactly the fragility I exist to defend, and it tightens my one
 hard constraint.
 
+> **Editor's note (control plane, post-hoc):** the "photos bugging the app" friction
+> (06-20) was *already fixed* before this exploration — client-side downscale in
+> `math-ui/lib/domains/math-notes/image.ts`. So it is **no longer live evidence of
+> fragility**; the Streak's fragility case rests on the single 3-day gap (06-21→23),
+> weighed against 10 months of unprompted practice + a self-staged comeback. The
+> "zero capture surface" design principle still stands on its own merits.
+
 ### Against the five advocates
 
 - **Atlas (#1)** is my closest rival for the "vanity visibility" he named — and it
