@@ -172,3 +172,99 @@ No deck, no streak, no due-pile. One card a day, then the book.
 - **Cadence:** he studies 1h/day, every day — enormous surface area for a
   90-second warm-up. The constraint is never opportunity; it's keeping the ask
   small, kind, and grounded enough that he *wants* the check.
+
+## Round 2 — defense & why mine wins
+
+The frozen rivals sharpened one thing: of the seven, mine is the only product
+whose mechanism is **time**. Everyone else acts on the note in front of him.
+I act on the note he's *forgetting*. Here's why that survives the Skeptic and
+beats the field.
+
+### Rebutting the Skeptic (07), honestly
+
+The Skeptic's three blows miss *me* specifically — and one of them is secretly
+my thesis.
+
+1. **"He already self-locates — notes titled 'Problem 2.16'."** True, and fatal
+   to the *Atlas*. Irrelevant to me. I never claimed he's lost in the book. I
+   claim he *forgets the book* — a different axis entirely. Knowing you're on
+   p.320 tells you nothing about whether you can still reprove p.180.
+2. **"'Don't spoil — I'm working on it' vetoes the loop."** It vetoes the
+   *Mentor* (which *tells* him "go redo §9.3"). It is my **design principle**. A
+   retrieval prompt is productive struggle in its purest form: it withholds the
+   answer and makes *him* generate it. When he says (06-24) *"I wanna take my
+   time trying to figure it out alone,"* he is asking — verbatim — for desirable
+   difficulty. The Skeptic calls his love of productive struggle a *risk*; for
+   me it's the **mechanism**. No other direction can say the no-spoiler plea is
+   evidence *for* it.
+3. **"The synthesis is already the magic."** The synthesis is a *capture* event —
+   one beautiful artifact, frozen at t=0. It does nothing against decay, and
+   worse, it *is* a fluency trap: he can re-read that gorgeous note forever,
+   nod, and mistake recognition for mastery. Re-reading is the weakest strategy
+   there is. The marginal value I add isn't "anchor to book" — it's **"keep the
+   synthesis alive in his head,"** which synthesis structurally cannot do.
+
+On **n=1 / two weeks**: conceded as my real cold-start tax. But the leanest test
+of *my* bet is cheaper than the Skeptic's own digest — and it slots inside it.
+Replace his "open thread you left unfinished" *line* with one **question**:
+*"Two weeks ago you set up the regular-level-set orientation. Without looking —
+what's the construction?"* A digest measures whether he *opens* it; a question
+measures whether he can still *do the math*. That's a cleaner read on the only
+signal that matters, for zero extra build. The Skeptic even gestures at my
+product — *"a loop that nudges backward rather than forward might thread the
+needle."* Backward + makes-him-generate = spaced retrieval. That's me.
+
+### Defending the lane against the five advocates
+
+- **Mentor-Loop (02) — my closest rival; we share the 06-28 bluff.** The
+  difference is decisive: the Mentor *tells* ("redo the 3×3 grid, do Ex 1.2.4");
+  I *ask* ("can you still rebuild why successive vertices share an A_i?"). The
+  Skeptic's veto guts the teller and spares the asker. And the Mentor fires
+  **once**, at the bluff; but forgetting isn't a one-time event — the step he
+  papers over on 06-28 is just as gone on day 50 whether or not he redid the
+  grid the next morning. He prescribes the climb; I keep it from eroding. **I
+  absorb his best point:** detection-at-capture works from note one, so my MVP
+  should also fire a light "lock-it-in" rep at synthesis time on the freshest
+  hedges, *then* space them — capture *and* decay, not either/or.
+- **Companion (06) — overlaps on "quiz me."** But that's **pull**: he has to
+  decide to be quizzed. The entire problem (06-28) is that *he won't ask about
+  the step he thinks he already has.* Recall is **push at the scheduled moment** —
+  it surfaces the bluff he'd never volunteer. A chat box has no spacing, no decay
+  model, no sense of *what's due*; that scheduler *is* the learning science. **I
+  absorb his best point:** he already monologues to the app (06-25, *"this is a
+  message for you, synthesists"*), so my answers are voice-first — same muscle.
+- **Atlas (01) & Streak (03):** the Atlas is recognition incarnate — its own
+  admitted risk is "pretty but inert." Lit territory is exactly the *I-recognize-
+  this* illusion retrieval exists to break. The Streak rewards the *act of
+  logging* regardless of whether anything stuck (its own over-justification
+  risk); I reward the *learning*. For a hobbyist with no exam, retained
+  mathematics is the only real outcome — the Streak protects the input, I protect
+  the output. **Conceded:** the Streak is right that habit is upstream; if he
+  stops logging I have no fuel.
+- **Concept-Web (04):** different axis, no real fight. It surfaces that the
+  determinant connects four ways; I make sure he can still *reconstruct* all four
+  in a month. Insight vs. retention of insight — complementary.
+
+### The wedge (the one thing only I do)
+
+**Recognition is not retrieval — and only I make him pull the math out of his own
+head, repeatedly, until it's permanent.** He has *no exam*; the book never tests
+him; so forgetting is invisible and unopposed. The recurring **nowhere-vanishing
+top form** — his orientation move across 06-19, 24, 25, 26, *and* 27 — is the
+perfect tell: five sessions reinforced it by accident, on a *transferable
+technique*. Every rival treats that as done: the Atlas lights it, the Streak
+counts it, the Web links it, the Mentor checked it off, the Companion waits to be
+asked. Only I come back on day 12, 30, 60 and say *"three ways you've built an
+orientation — without looking, what's the one move they share?"* — converting an
+accidental pattern into permanent skill.
+
+### Honest concession
+
+**The Mentor-Loop beats me in the moment of the skip.** When he says on 06-28
+*"I'll just keep moving and assume I got it,"* the right intervention *right
+then* is the Mentor's "not so fast, go back" — it acts at capture, from note one,
+before he advances past the crux. My spaced prompt doesn't fire for days, by
+which point he's already moved on. The Mentor catches the bluff as it happens; I
+keep it from fading over the months after. If the real problem is *skipping the
+hard part today*, the Mentor wins. If it's *losing it forever*, I do — and for a
+ten-month hobby with no deadline, "forever" is the game.
