@@ -1,0 +1,1104 @@
+{
+  "provenance": "Tu §7 Quotients, pdf 90-103 / printed 71-84, offset 19; hand-seed Track B r1",
+  "run_id": "seed-track-b-r1",
+  "nodes": [
+    {
+      "node_id": "book",
+      "parent_id": null,
+      "kind": "book",
+      "label": null,
+      "title": "An Introduction to Manifolds",
+      "heading_path": [],
+      "page_pdf_start": null,
+      "page_pdf_end": null,
+      "page_printed_start": null,
+      "page_printed_end": null,
+      "text_raw": null,
+      "text_normalized": null,
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 1.0,
+      "evidence": [
+        "root"
+      ]
+    },
+    {
+      "node_id": "book.ch1",
+      "parent_id": "book",
+      "kind": "chapter",
+      "label": "Chapter 1",
+      "title": "Euclidean Spaces",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces"
+      ],
+      "page_pdf_start": 22,
+      "page_pdf_end": null,
+      "page_printed_start": "1",
+      "page_printed_end": null,
+      "text_raw": null,
+      "text_normalized": null,
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.99,
+      "evidence": [
+        "TOC L1"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7",
+      "parent_id": "book.ch1",
+      "kind": "section",
+      "label": "§7",
+      "title": "Quotients",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients"
+      ],
+      "page_pdf_start": 90,
+      "page_pdf_end": 103,
+      "page_printed_start": "71",
+      "page_printed_end": "84",
+      "text_raw": "Gluing the edges of a malleable square is one way to create new surfaces. ... This gluing process is called an identification or a quotient construction. The main results of this section give conditions under which a quotient space remains second countable and Hausdorff.",
+      "text_normalized": "Gluing the edges of a malleable square is one way to create new surfaces. ... This gluing process is called an identification or a quotient construction. The main results of this section give conditions under which a quotient space remains second countable and Hausdorff.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.99,
+      "evidence": [
+        "matched TOC §7",
+        "Times-Bold 14pt heading"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.7_1",
+      "parent_id": "book.ch1.s7",
+      "kind": "subsection",
+      "label": "7.1",
+      "title": "The Quotient Topology",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.1 The Quotient Topology"
+      ],
+      "page_pdf_start": 90,
+      "page_pdf_end": 91,
+      "page_printed_start": "71",
+      "page_printed_end": "72",
+      "text_raw": "Recall that an equivalence relation on a set S is reflexive, symmetric, transitive ... the quotient topology on S/~ ...",
+      "text_normalized": "Recall that an equivalence relation on a set S is reflexive, symmetric, transitive ... the quotient topology on S/~ ...",
+      "proves": null,
+      "math_region_ids": [
+        "book.ch1.s7.eq_proj"
+      ],
+      "confidence": 0.98,
+      "evidence": [
+        "matched TOC 7.1",
+        "bold 12pt"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.7_2",
+      "parent_id": "book.ch1.s7",
+      "kind": "subsection",
+      "label": "7.2",
+      "title": "Continuity of a Map on a Quotient",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.2 Continuity of a Map on a Quotient"
+      ],
+      "page_pdf_start": 91,
+      "page_pdf_end": 92,
+      "page_printed_start": "72",
+      "page_printed_end": "73",
+      "text_raw": "Let ~ be an equivalence relation on the topological space S ... it induces a map f-bar : S/~ -> Y ...",
+      "text_normalized": "Let ~ be an equivalence relation on the topological space S ... it induces a map f-bar : S/~ -> Y ...",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.98,
+      "evidence": [
+        "matched TOC 7.2",
+        "bold 12pt"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.7_3",
+      "parent_id": "book.ch1.s7",
+      "kind": "subsection",
+      "label": "7.3",
+      "title": "Identification of a Subset to a Point",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.3 Identification of a Subset to a Point"
+      ],
+      "page_pdf_start": 92,
+      "page_pdf_end": 92,
+      "page_printed_start": "73",
+      "page_printed_end": "73",
+      "text_raw": "If A is a subspace of a topological space S ... identifying A to a point.",
+      "text_normalized": "If A is a subspace of a topological space S ... identifying A to a point.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.98,
+      "evidence": [
+        "matched TOC 7.3",
+        "bold 12pt"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.7_4",
+      "parent_id": "book.ch1.s7",
+      "kind": "subsection",
+      "label": "7.4",
+      "title": "A Necessary Condition for a Hausdorff Quotient",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.4 A Necessary Condition for a Hausdorff Quotient"
+      ],
+      "page_pdf_start": 92,
+      "page_pdf_end": 93,
+      "page_printed_start": "73",
+      "page_printed_end": "74",
+      "text_raw": "The quotient construction does not in general preserve the Hausdorff property or second countability.",
+      "text_normalized": "The quotient construction does not in general preserve the Hausdorff property or second countability.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.98,
+      "evidence": [
+        "matched TOC 7.4",
+        "bold 12pt"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.7_5",
+      "parent_id": "book.ch1.s7",
+      "kind": "subsection",
+      "label": "7.5",
+      "title": "Open Equivalence Relations",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 93,
+      "page_pdf_end": 95,
+      "page_printed_start": "74",
+      "page_printed_end": "76",
+      "text_raw": "In this section we follow the treatment of Boothby and derive conditions under which a quotient space is Hausdorff or second countable.",
+      "text_normalized": "In this section we follow the treatment of Boothby and derive conditions under which a quotient space is Hausdorff or second countable.",
+      "proves": null,
+      "math_region_ids": [
+        "book.ch1.s7.eq_graphR"
+      ],
+      "confidence": 0.98,
+      "evidence": [
+        "matched TOC 7.5",
+        "bold 12pt"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.7_6",
+      "parent_id": "book.ch1.s7",
+      "kind": "subsection",
+      "label": "7.6",
+      "title": "Real Projective Space",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 95,
+      "page_pdf_end": 98,
+      "page_printed_start": "76",
+      "page_printed_end": "79",
+      "text_raw": "Define an equivalence relation on R^{n+1}-{0} ... The real projective space RP^n is the quotient space ...",
+      "text_normalized": "Define an equivalence relation on R^{n+1}-{0} ... The real projective space RP^n is the quotient space ...",
+      "proves": null,
+      "math_region_ids": [
+        "book.ch1.s7.eq_rpn"
+      ],
+      "confidence": 0.98,
+      "evidence": [
+        "matched TOC 7.6",
+        "bold 12pt"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.7_7",
+      "parent_id": "book.ch1.s7",
+      "kind": "subsection",
+      "label": "7.7",
+      "title": "The Standard C-infinity Atlas on a Real Projective Space",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.7 The Standard C-infinity Atlas on a Real Projective Space"
+      ],
+      "page_pdf_start": 98,
+      "page_pdf_end": 99,
+      "page_printed_start": "79",
+      "page_printed_end": "80",
+      "text_raw": "The standard atlas on RP^n ...",
+      "text_normalized": "The standard atlas on RP^n ...",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.98,
+      "evidence": [
+        "matched TOC 7.7",
+        "bold 12pt"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prop7_1",
+      "parent_id": "book.ch1.s7.7_2",
+      "kind": "proposition",
+      "label": "Proposition 7.1",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.2 Continuity of a Map on a Quotient"
+      ],
+      "page_pdf_start": 91,
+      "page_pdf_end": 91,
+      "page_printed_start": "72",
+      "page_printed_end": "72",
+      "text_raw": "The induced map f-bar : S/~ -> Y is continuous if and only if the map f : S -> Y is continuous.",
+      "text_normalized": "The induced map f-bar : S/~ -> Y is continuous if and only if the map f : S -> Y is continuous.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Proposition 7.1'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.ex7_2",
+      "parent_id": "book.ch1.s7.7_3",
+      "kind": "example",
+      "label": "Example 7.2",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.3 Identification of a Subset to a Point"
+      ],
+      "page_pdf_start": 92,
+      "page_pdf_end": 92,
+      "page_printed_start": "73",
+      "page_printed_end": "73",
+      "text_raw": "Let I be the unit interval [0,1] and I/~ the quotient obtained from I by identifying {0,1} to a point ... induces f-bar : I/~ -> S^1.",
+      "text_normalized": "Let I be the unit interval [0,1] and I/~ the quotient obtained from I by identifying {0,1} to a point ... induces f-bar : I/~ -> S^1.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Example 7.2'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prop7_3",
+      "parent_id": "book.ch1.s7.7_3",
+      "kind": "proposition",
+      "label": "Proposition 7.3",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.3 Identification of a Subset to a Point"
+      ],
+      "page_pdf_start": 92,
+      "page_pdf_end": 92,
+      "page_printed_start": "73",
+      "page_printed_end": "73",
+      "text_raw": "The function f-bar : I/~ -> S^1 is a homeomorphism.",
+      "text_normalized": "The function f-bar : I/~ -> S^1 is a homeomorphism.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Proposition 7.3'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prop7_4",
+      "parent_id": "book.ch1.s7.7_4",
+      "kind": "proposition",
+      "label": "Proposition 7.4",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.4 A Necessary Condition for a Hausdorff Quotient"
+      ],
+      "page_pdf_start": 92,
+      "page_pdf_end": 93,
+      "page_printed_start": "73",
+      "page_printed_end": "74",
+      "text_raw": "If the quotient space S/~ is Hausdorff, then the equivalence class [p] of any point p in S is closed in S.",
+      "text_normalized": "If the quotient space S/~ is Hausdorff, then the equivalence class [p] of any point p in S is closed in S.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Proposition 7.4'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.ex_p74",
+      "parent_id": "book.ch1.s7.7_4",
+      "kind": "example",
+      "label": "Example",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.4 A Necessary Condition for a Hausdorff Quotient"
+      ],
+      "page_pdf_start": 93,
+      "page_pdf_end": 93,
+      "page_printed_start": "74",
+      "page_printed_end": "74",
+      "text_raw": "Define an equivalence relation ~ on R by identifying the open interval ]0,inf[ to a point. Then R/~ is not Hausdorff ...",
+      "text_normalized": "Define an equivalence relation ~ on R by identifying the open interval ]0,inf[ to a point. Then R/~ is not Hausdorff ...",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Example'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.def7_5",
+      "parent_id": "book.ch1.s7.7_5",
+      "kind": "definition",
+      "label": "Definition 7.5",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 93,
+      "page_pdf_end": 93,
+      "page_printed_start": "74",
+      "page_printed_end": "74",
+      "text_raw": "An equivalence relation ~ on a topological space S is said to be open if the projection map pi : S -> S/~ is open.",
+      "text_normalized": "An equivalence relation ~ on a topological space S is said to be open if the projection map pi : S -> S/~ is open.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Definition 7.5'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.ex7_6",
+      "parent_id": "book.ch1.s7.7_5",
+      "kind": "example",
+      "label": "Example 7.6",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 93,
+      "page_pdf_end": 93,
+      "page_printed_start": "74",
+      "page_printed_end": "74",
+      "text_raw": "The projection map to a quotient space is in general not open. For example, identify 1 and -1 on R ...",
+      "text_normalized": "The projection map to a quotient space is in general not open. For example, identify 1 and -1 on R ...",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Example 7.6'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.thm7_7",
+      "parent_id": "book.ch1.s7.7_5",
+      "kind": "theorem",
+      "label": "Theorem 7.7",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 94,
+      "page_pdf_end": 94,
+      "page_printed_start": "75",
+      "page_printed_end": "75",
+      "text_raw": "Suppose ~ is an open equivalence relation on a topological space S. Then S/~ is Hausdorff if and only if the graph R of ~ is closed in S x S.",
+      "text_normalized": "Suppose ~ is an open equivalence relation on a topological space S. Then S/~ is Hausdorff if and only if the graph R of ~ is closed in S x S.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Theorem 7.7'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.cor7_8",
+      "parent_id": "book.ch1.s7.7_5",
+      "kind": "corollary",
+      "label": "Corollary 7.8",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 94,
+      "page_pdf_end": 94,
+      "page_printed_start": "75",
+      "page_printed_end": "75",
+      "text_raw": "A topological space S is Hausdorff if and only if the diagonal Delta in S x S is closed. (Found in round-1 ref-eval: cited 3x in §7 prose but missing from the first hand-seed; added.)",
+      "text_normalized": "A topological space S is Hausdorff if and only if the diagonal Delta in S x S is closed. (Found in round-1 ref-eval: cited 3x in §7 prose but missing from the first hand-seed; added.)",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Corollary 7.8'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.thm7_9",
+      "parent_id": "book.ch1.s7.7_5",
+      "kind": "theorem",
+      "label": "Theorem 7.9",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 95,
+      "page_pdf_end": 95,
+      "page_printed_start": "76",
+      "page_printed_end": "76",
+      "text_raw": "Let ~ be an open equivalence relation on a topological space S with projection pi. If B={B_a} is a basis for S, then {pi(B_a)} is a basis for S/~.",
+      "text_normalized": "Let ~ be an open equivalence relation on a topological space S with projection pi. If B={B_a} is a basis for S, then {pi(B_a)} is a basis for S/~.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Theorem 7.9'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.cor7_10",
+      "parent_id": "book.ch1.s7.7_5",
+      "kind": "corollary",
+      "label": "Corollary 7.10",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 95,
+      "page_pdf_end": 95,
+      "page_printed_start": "76",
+      "page_printed_end": "76",
+      "text_raw": "If ~ is an open equivalence relation on a second-countable space S, then S/~ is second countable.",
+      "text_normalized": "If ~ is an open equivalence relation on a second-countable space S, then S/~ is second countable.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Corollary 7.10'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.exr7_11",
+      "parent_id": "book.ch1.s7.7_6",
+      "kind": "exercise",
+      "label": "Exercise 7.11",
+      "title": "Real projective space as a quotient of a sphere",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 96,
+      "page_pdf_end": 96,
+      "page_printed_start": "77",
+      "page_printed_end": "77",
+      "text_raw": "For x=(x1,...,xn) in R^n ... real projective space as a quotient of a sphere.",
+      "text_normalized": "For x=(x1,...,xn) in R^n ... real projective space as a quotient of a sphere.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Exercise 7.11'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.ex7_12",
+      "parent_id": "book.ch1.s7.7_6",
+      "kind": "example",
+      "label": "Example 7.12",
+      "title": "The real projective line RP1",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 96,
+      "page_pdf_end": 96,
+      "page_printed_start": "77",
+      "page_printed_end": "77",
+      "text_raw": "The real projective line RP^1 ...",
+      "text_normalized": "The real projective line RP^1 ...",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Example 7.12'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.ex7_13",
+      "parent_id": "book.ch1.s7.7_6",
+      "kind": "example",
+      "label": "Example 7.13",
+      "title": "The real projective plane RP2",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 96,
+      "page_pdf_end": 97,
+      "page_printed_start": "77",
+      "page_printed_end": "78",
+      "text_raw": "By Exercise 7.11, there is a homeomorphism ... real projective plane RP^2 (see Problem 7.2).",
+      "text_normalized": "By Exercise 7.11, there is a homeomorphism ... real projective plane RP^2 (see Problem 7.2).",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Example 7.13'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prop7_14",
+      "parent_id": "book.ch1.s7.7_6",
+      "kind": "proposition",
+      "label": "Proposition 7.14",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 98,
+      "page_pdf_end": 98,
+      "page_printed_start": "79",
+      "page_printed_end": "79",
+      "text_raw": "The equivalence relation ~ on R^{n+1}-{0} in the definition of RP^n is open.",
+      "text_normalized": "The equivalence relation ~ on R^{n+1}-{0} in the definition of RP^n is open.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Proposition 7.14'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.cor7_15",
+      "parent_id": "book.ch1.s7.7_6",
+      "kind": "corollary",
+      "label": "Corollary 7.15",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 98,
+      "page_pdf_end": 98,
+      "page_printed_start": "79",
+      "page_printed_end": "79",
+      "text_raw": "The real projective space RP^n is second countable.",
+      "text_normalized": "The real projective space RP^n is second countable.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Corollary 7.15'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prop7_16",
+      "parent_id": "book.ch1.s7.7_6",
+      "kind": "proposition",
+      "label": "Proposition 7.16",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 98,
+      "page_pdf_end": 98,
+      "page_printed_start": "79",
+      "page_printed_end": "79",
+      "text_raw": "The real projective space RP^n is Hausdorff.",
+      "text_normalized": "The real projective space RP^n is Hausdorff.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.96,
+      "evidence": [
+        "bold label 'Proposition 7.16'"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prf7_1",
+      "parent_id": "book.ch1.s7.prop7_1",
+      "kind": "proof",
+      "label": "Proof",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.2 Continuity of a Map on a Quotient"
+      ],
+      "page_pdf_start": 91,
+      "page_pdf_end": 91,
+      "page_printed_start": "72",
+      "page_printed_end": "72",
+      "text_raw": "Proof. (=>) If f-bar is continuous ... (<=) Suppose f is continuous ...",
+      "text_normalized": "Proof. (=>) If f-bar is continuous ... (<=) Suppose f is continuous ...",
+      "proves": "book.ch1.s7.prop7_1",
+      "math_region_ids": [],
+      "confidence": 0.9,
+      "evidence": [
+        "'Proof.' attaches to book.ch1.s7.prop7_1"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prf7_3",
+      "parent_id": "book.ch1.s7.prop7_3",
+      "kind": "proof",
+      "label": "Proof",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.3 Identification of a Subset to a Point"
+      ],
+      "page_pdf_start": 92,
+      "page_pdf_end": 92,
+      "page_printed_start": "73",
+      "page_printed_end": "73",
+      "text_raw": "Proof. Since f is continuous, f-bar is continuous by Proposition 7.1 ... By Corollary A.36, f-bar is a homeomorphism.",
+      "text_normalized": "Proof. Since f is continuous, f-bar is continuous by Proposition 7.1 ... By Corollary A.36, f-bar is a homeomorphism.",
+      "proves": "book.ch1.s7.prop7_3",
+      "math_region_ids": [],
+      "confidence": 0.9,
+      "evidence": [
+        "'Proof.' attaches to book.ch1.s7.prop7_3"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prf7_7",
+      "parent_id": "book.ch1.s7.thm7_7",
+      "kind": "proof",
+      "label": "Proof",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 94,
+      "page_pdf_end": 94,
+      "page_printed_start": "75",
+      "page_printed_end": "75",
+      "text_raw": "Proof. There is a sequence of equivalent statements ... see Problem 7.1 ...",
+      "text_normalized": "Proof. There is a sequence of equivalent statements ... see Problem 7.1 ...",
+      "proves": "book.ch1.s7.thm7_7",
+      "math_region_ids": [],
+      "confidence": 0.9,
+      "evidence": [
+        "'Proof.' attaches to book.ch1.s7.thm7_7"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prf7_9",
+      "parent_id": "book.ch1.s7.thm7_9",
+      "kind": "proof",
+      "label": "Proof",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.5 Open Equivalence Relations"
+      ],
+      "page_pdf_start": 95,
+      "page_pdf_end": 95,
+      "page_printed_start": "76",
+      "page_printed_end": "76",
+      "text_raw": "Proof. Since pi is an open map, {pi(B_a)} is a collection of open sets ...",
+      "text_normalized": "Proof. Since pi is an open map, {pi(B_a)} is a collection of open sets ...",
+      "proves": "book.ch1.s7.thm7_9",
+      "math_region_ids": [],
+      "confidence": 0.9,
+      "evidence": [
+        "'Proof.' attaches to book.ch1.s7.thm7_9"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prf7_14",
+      "parent_id": "book.ch1.s7.prop7_14",
+      "kind": "proof",
+      "label": "Proof",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 98,
+      "page_pdf_end": 98,
+      "page_printed_start": "79",
+      "page_printed_end": "79",
+      "text_raw": "Proof. For an open set U in R^{n+1}-{0}, the image pi(U) is open in RP^n if and only if ...",
+      "text_normalized": "Proof. For an open set U in R^{n+1}-{0}, the image pi(U) is open in RP^n if and only if ...",
+      "proves": "book.ch1.s7.prop7_14",
+      "math_region_ids": [],
+      "confidence": 0.9,
+      "evidence": [
+        "'Proof.' attaches to book.ch1.s7.prop7_14"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prf7_15",
+      "parent_id": "book.ch1.s7.cor7_15",
+      "kind": "proof",
+      "label": "Proof",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 98,
+      "page_pdf_end": 98,
+      "page_printed_start": "79",
+      "page_printed_end": "79",
+      "text_raw": "Proof. Apply Corollary 7.10.",
+      "text_normalized": "Proof. Apply Corollary 7.10.",
+      "proves": "book.ch1.s7.cor7_15",
+      "math_region_ids": [],
+      "confidence": 0.9,
+      "evidence": [
+        "'Proof.' attaches to book.ch1.s7.cor7_15"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prf7_16",
+      "parent_id": "book.ch1.s7.prop7_16",
+      "kind": "proof",
+      "label": "Proof",
+      "title": null,
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "7.6 Real Projective Space"
+      ],
+      "page_pdf_start": 98,
+      "page_pdf_end": 98,
+      "page_printed_start": "79",
+      "page_printed_end": "79",
+      "text_raw": "Proof. Let S = R^{n+1}-{0} and consider the set ...",
+      "text_normalized": "Proof. Let S = R^{n+1}-{0} and consider the set ...",
+      "proves": "book.ch1.s7.prop7_16",
+      "math_region_ids": [],
+      "confidence": 0.9,
+      "evidence": [
+        "'Proof.' attaches to book.ch1.s7.prop7_16"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.problems",
+      "parent_id": "book.ch1.s7",
+      "kind": "exposition",
+      "label": "Problems",
+      "title": "Problems",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 100,
+      "page_pdf_end": 103,
+      "page_printed_start": "81",
+      "page_printed_end": "84",
+      "text_raw": "Problems block for §7.",
+      "text_normalized": "Problems block for §7.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.97,
+      "evidence": [
+        "bold 'Problems' 12pt heading"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_1",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.1",
+      "title": "Image of the inverse image of a map",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 100,
+      "page_pdf_end": 100,
+      "page_printed_start": "81",
+      "page_printed_end": "81",
+      "text_raw": "Problem 7.1. Image of the inverse image of a map.",
+      "text_normalized": "Problem 7.1. Image of the inverse image of a map.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.1' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_2",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.2",
+      "title": "Real projective plane",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 100,
+      "page_pdf_end": 100,
+      "page_printed_start": "81",
+      "page_printed_end": "81",
+      "text_raw": "Problem 7.2. Real projective plane.",
+      "text_normalized": "Problem 7.2. Real projective plane.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.2' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_3",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.3",
+      "title": "Closedness of the diagonal of a Hausdorff space",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 100,
+      "page_pdf_end": 100,
+      "page_printed_start": "81",
+      "page_printed_end": "81",
+      "text_raw": "Problem 7.3. Closedness of the diagonal of a Hausdorff space.",
+      "text_normalized": "Problem 7.3. Closedness of the diagonal of a Hausdorff space.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.3' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_4",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.4",
+      "title": "Quotient of a sphere with antipodal points identified",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 100,
+      "page_pdf_end": 100,
+      "page_printed_start": "81",
+      "page_printed_end": "81",
+      "text_raw": "Problem 7.4. Quotient of a sphere with antipodal points identified.",
+      "text_normalized": "Problem 7.4. Quotient of a sphere with antipodal points identified.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.4' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_5",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.5",
+      "title": "Orbit space of a continuous group action",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 100,
+      "page_pdf_end": 100,
+      "page_printed_start": "81",
+      "page_printed_end": "81",
+      "text_raw": "Problem 7.5. Orbit space of a continuous group action.",
+      "text_normalized": "Problem 7.5. Orbit space of a continuous group action.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.5' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_6",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.6",
+      "title": "Quotient of R by 2*pi*Z",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 100,
+      "page_pdf_end": 100,
+      "page_printed_start": "81",
+      "page_printed_end": "81",
+      "text_raw": "Problem 7.6. Quotient of R by 2*pi*Z.",
+      "text_normalized": "Problem 7.6. Quotient of R by 2*pi*Z.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.6' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_7",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.7",
+      "title": "The circle as a quotient space",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 101,
+      "page_pdf_end": 101,
+      "page_printed_start": "82",
+      "page_printed_end": "82",
+      "text_raw": "Problem 7.7. The circle as a quotient space.",
+      "text_normalized": "Problem 7.7. The circle as a quotient space.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.7' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_8",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.8",
+      "title": "The Grassmannian G(k,n)",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 101,
+      "page_pdf_end": 101,
+      "page_printed_start": "82",
+      "page_printed_end": "82",
+      "text_raw": "Problem 7.8. The Grassmannian G(k,n).",
+      "text_normalized": "Problem 7.8. The Grassmannian G(k,n).",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.8' in Problems block"
+      ]
+    },
+    {
+      "node_id": "book.ch1.s7.prob7_9",
+      "parent_id": "book.ch1.s7.problems",
+      "kind": "exercise",
+      "label": "Problem 7.9",
+      "title": "Compactness of real projective space",
+      "heading_path": [
+        "Chapter 1: Euclidean Spaces",
+        "§7 Quotients",
+        "Problems"
+      ],
+      "page_pdf_start": 102,
+      "page_pdf_end": 102,
+      "page_printed_start": "83",
+      "page_printed_end": "83",
+      "text_raw": "Problem 7.9. Compactness of real projective space.",
+      "text_normalized": "Problem 7.9. Compactness of real projective space.",
+      "proves": null,
+      "math_region_ids": [],
+      "confidence": 0.94,
+      "evidence": [
+        "bold '7.9' in Problems block"
+      ]
+    }
+  ],
+  "equations": [
+    {
+      "eq_id": "book.ch1.s7.eq_proj",
+      "pdf_page": 90,
+      "bbox": null,
+      "raw_text": "pi : S -> S/~",
+      "latex": null,
+      "latex_confidence": 0.5,
+      "image_crop_key": null,
+      "parent_node_id": "book.ch1.s7.7_1",
+      "block_id": null
+    },
+    {
+      "eq_id": "book.ch1.s7.eq_graphR",
+      "pdf_page": 93,
+      "bbox": null,
+      "raw_text": "R = {(x,y) in SxS | x ~ y}",
+      "latex": null,
+      "latex_confidence": 0.5,
+      "image_crop_key": null,
+      "parent_node_id": "book.ch1.s7.7_5",
+      "block_id": null
+    },
+    {
+      "eq_id": "book.ch1.s7.eq_rpn",
+      "pdf_page": 95,
+      "bbox": null,
+      "raw_text": "x ~ y  <=>  y = t x for some nonzero real t",
+      "latex": null,
+      "latex_confidence": 0.5,
+      "image_crop_key": null,
+      "parent_node_id": "book.ch1.s7.7_6",
+      "block_id": null
+    }
+  ]
+}
