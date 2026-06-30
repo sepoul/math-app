@@ -150,10 +150,90 @@ close the recall-gap loop with A; (4) A: close the 6 inline `Exercise` recall
 gaps + log extraction time; (5) D: re-score C's real runs with aligned matching
 + re-run §17 attribution (watch ranking-side misses collapse).
 
-## Round 3 — Retrieval depth + reconciliation _(pending)_
+## Round 3 — Retrieval depth + reconciliation (§12–15) — COMPLETE
+
+- **A** closed all 6 recall gaps (+ found a 7th, `Exercise 3.6 Inversions`) and
+  **froze the corpus**: `run_id track-a-r1`, **166 nodes**, fidelity 120/120;
+  extraction logged (slice 0.68s, full-book ~6.5s, $0).
+- **B** shipped an **intent-gated bounded expansion helper** C imports;
+  reference resolution **96/96 = 100%, zero recall gaps**; quantified that
+  deterministic edges fully answer *structural* queries (100%) but cap
+  *graph-expansion* at 60–75% — the 3 misses are cross-subsection semantic deps
+  needing the optional §11 `depends_on` tier.
+- **C** deepened retrieval on the frozen corpus: intent-gating **fixed R2's
+  −0.067 graph regression** (now neutral, MRR→1.0 on structural/expansion);
+  coarse-to-fine +0.030 recall@10; **rerank latency halved** (3855→1789ms) at
+  ~$0.0014/q.
+- **C + D reconciled the R2 discrepancy** — it was *measurement state, not
+  retriever quality*: a gold-loader silently dropped the `page_pdf` column so
+  the page-fallback never fired. On one harness, C and D agree to noise.
+
+**The numbers (frozen corpus, 26 queries) — and the honest bracket:**
+
+| run | recall@5 (page-aware) | recall@5 (strict unit) | MRR | label-hit | trace | p50 |
+|---|---|---|---|---|---|---|
+| naive_baseline | 0.718 | 0.000 | 0.540 | 0.000 | 0.000 | 197ms |
+| **C_hybrid** (no LLM) | 0.816 | ~0.58 | 0.862 | 0.423 | 0.981 | **73ms** |
+| **C_full** (gated graph + c2f + rerank) | **0.854** | ~0.66 | **0.910** | 0.500 | 0.988 | 1938ms |
+
+> **Read the bracket honestly.** Structure-aware hybrid returns the **right
+> place ~0.82–0.86** of the time and the **exact right unit ~0.58–0.66** of the
+> time — and *every* result is named + source-traceable (trace ≈ 1.0). The naive
+> baseline reaches the right page ~0.72 of the time but **names/grounds/ranks
+> nothing** (label-hit 0, trace 0). For #55 ("redo *this* exercise, here") the
+> named/traceable unit is the product requirement — the dimension where naive
+> scores zero.
+
+**Orchestrator flag (for R4):** C and D both conclude GO but cite different
+primary recall (D: strict ≈0.66; C: page-aware ≈0.82–0.86) due to (1) match-mode
+choice, (2) a `page_pdf` gold-loader bug, (3) rerank config drift across rounds.
+**Not a contradiction — a bracket.** R4 must publish **one canonical table**
+(single config, one gold source, both strict + page-aware side by side).
+
 ## Round 4 — Eval & verdict _(pending)_
 
 ---
 
-## Cross-cutting analysis _(accrues each round)_
-## Verdict: GO / NO-GO _(R4)_
+## Interim consolidation — after Round 3 (where we stand)
+
+**Verdict trajectory: a confident GO** for structured RAG on Tu, on all three
+axes the spike set out to test.
+
+- **Feasibility ✓** — Tu's structure extracts deterministically and completely:
+  166 typed nodes, 120/120 environments, proof→theorem links, 100% reference
+  resolution, page mapping, 205 equation regions (vision→LaTeX ~0.95). The book's
+  formal grammar *is* recoverable into a trustworthy graph, no LLM in the hot path.
+- **Quality ✓** — structure-aware hybrid beats a naive fixed-window baseline on
+  every axis that matters, decisively on the ones naive *cannot do at all*
+  (name the unit, ground to source, rank correctly: naive = 0). Rerank is the
+  single biggest ranking lift and **earns its keep** (beats the reference
+  yardstick; collapses the entire `metadata_rerank` miss bucket). The §17
+  attribution confirms the spec thesis: with extraction solid, **failures live
+  in ranking, not segmentation or embedding choice.**
+- **Speed/cost ✓** — extraction ~6.5s/full-book/$0; index ~$0.012 one-time;
+  hybrid query **73ms** and effectively free; LLM rerank the one cost line
+  (~$0.0014–0.023/q, ~1.8s) — gate it to ambiguous queries. **Fits a daily
+  synthesis pass with room to spare.**
+
+**What's settled:** the substrate (extraction + graph + grounding), that
+structure beats naive, that rerank is load-bearing, that cost is a non-issue,
+that it scales to 430pp.
+
+**What R4 closes:** (1) the **one canonical bake-off table** (strict + page-aware
+for a single config — resolve the C/D presentation gap); (2) **B's optional
+`depends_on` edges** to attack the lone multi-hop miss (D-023) — and a
+recommendation on whether semantic edges earn a place in #50; (3) **C widening
+the candidate pool / embed-input** for the 5 `weak_vector` misses (the strict-
+recall ceiling); (4) the **fix/standardize the `page_pdf` gold loader**; (5) the
+final synthesis + risk register for #50/#55/#53.
+
+**What it means for the Mentor Loop (#50):** the foundational dependency this
+spike was built to de-risk — *can we ground the loop in structured retrieval
+over the book?* — answers **yes**. #55 (book skeleton & grounding) is directly
+validated (named, page-traceable units at ~73ms). #53 (bridge canonicalization)
+gets a partial answer: structural/reference edges resolve in-track connections
+fully, but **cross-subsection conceptual bridges need the semantic-edge tier**
+(B's R4 `depends_on` experiment sizes that cost).
+
+## Cross-cutting analysis _(persisted in `o_analysis`; 14 findings across R1–R3)_
+## Verdict: GO / NO-GO _(R4 — final)_
