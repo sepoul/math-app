@@ -1,29 +1,31 @@
 """Track C — build the two index tables: c_chunks (structured) + c_baseline_chunks (naive).
 
-Round 1: stand up the retrieval substrate. Sources, in preference order:
-  1. Track A's `a_nodes` (preferred) — when populated.
-  2. seed fixture `_shared/seed/seed_nodes.json` — when present.
+Sources, in preference order (printed as `source`):
+  1. Track A's `a_nodes` (PREFERRED, R2) — the canonical skeleton.
+  2. seed fixture `_shared/seed/seed_nodes.json` — if present.
   3. direct fitz extract of the slice (extract_slice.py) — the R1 fallback.
-We print which source we used.
 
-For structured units we build the §12 *contextualized embed_input*:
+R2 changes vs R1
+----------------
+- Adopt A's canonical node_ids + heading_path (`book.sub7.5.theorem117`, §7 under
+  Chapter 2). Carry `node_id` on every chunk so the harness can match on id.
+- **Gold-matching labels.** The eval matches on normalized `label`. A labels
+  subsections "7.1" and proofs "Proof"; D's gold uses "subsection 7.1 The
+  Quotient Topology" and "Proof of Theorem 7.7". We mint a `match_label` per
+  chunk that follows D's convention (and fix the "C∞Versus"→"C∞ Versus" spacing).
+- **Section/subsection summaries.** A's section/subsection nodes have empty
+  text_raw; we synthesize a deterministic summary (heading path + the labels/
+  titles of contained leaves). Fixes the R1 8192-token cap with no LLM call.
 
-    Book: An Introduction to Manifolds
-    Chapter 1: Euclidean Spaces
-    Section §7: Quotients
-    Type: Theorem
-    Label: Theorem 7.7
-
-    <text>
-
-`tsv` = to_tsvector('english', heading_path || label || text) so labels and the
-heading path are lexically searchable too. `embedding` = text-embedding-3-small.
+`tsv = to_tsvector('english', heading_path ‖ match_label ‖ title ‖ text)`.
+`embedding = text-embedding-3-small` (1536-d), same for both tables.
 
 Usage (CWD = spikes/book-rag):
     .venv/bin/python track-c/build_index.py [--source a_nodes|seed|fitz] [--no-embed]
 """
 from __future__ import annotations
 
+import re
 import sys
 import json
 import time
@@ -33,8 +35,9 @@ import argparse
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from _shared.db import connect, SCHEMA, SLICE  # noqa: E402
-from extract_slice import extract_slice  # noqa: E402
+from extract_slice import extract_slice, clean_text  # noqa: E402
 from baseline import build_baseline_chunks  # noqa: E402
+from labels import match_label_for  # noqa: E402
 
 BOOK_TITLE = "An Introduction to Manifolds"
 
@@ -55,7 +58,8 @@ def _from_a_nodes() -> list[dict] | None:
                            'lemma','corollary','proof','example','remark','exercise')
         """)
         cols = [c.name for c in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
+        nodes = [dict(zip(cols, r)) for r in cur.fetchall()]
+    return nodes
 
 
 def _from_seed() -> list[dict] | None:
@@ -65,72 +69,99 @@ def _from_seed() -> list[dict] | None:
     return json.loads(p.read_text())
 
 
-def resolve_source(pref: str) -> tuple[str, list[dict], list[dict]]:
-    """Return (source_name, section_nodes, leaf_nodes)."""
+def resolve_source(pref: str) -> tuple[str, list[dict]]:
+    """Return (source_name, all_nodes) — sections+subsections+leaves in one list."""
     if pref in ("a_nodes", "auto"):
         a = _from_a_nodes()
         if a:
-            secs = [n for n in a if n["kind"] in ("section", "subsection")]
-            leaves = [n for n in a if n["kind"] not in ("section", "subsection", "chapter", "book")]
-            return "a_nodes", secs, leaves
+            return "a_nodes", a
         if pref == "a_nodes":
             raise SystemExit("a_nodes is empty; pass --source fitz to fall back.")
     if pref in ("seed", "auto"):
         s = _from_seed()
         if s:
-            secs = [n for n in s if n["kind"] in ("section", "subsection")]
-            leaves = [n for n in s if n["kind"] not in ("section", "subsection", "chapter", "book")]
-            return "seed", secs, leaves
+            return "seed", s
         if pref == "seed":
             raise SystemExit("seed fixture not found; pass --source fitz.")
-    # fallback: direct fitz extract
     secs, leaves = extract_slice()
-    return "fitz_extract", secs, leaves
+    return "fitz_extract", secs + leaves
+
+
+# ---- §12 section/subsection deterministic summary -------------------------
+SECTION_KINDS = {"section", "subsection"}
+LEAF_KINDS = {"definition", "theorem", "proposition", "lemma", "corollary",
+              "proof", "example", "remark", "exercise"}
+
+
+def synthesize_container_text(node: dict, children: list[dict]) -> str:
+    """A cheap, deterministic 'what's in this section' summary (spec §12): the
+    heading path + an enumerated list of the contained units' labels/titles."""
+    hp = node.get("heading_path") or []
+    head = hp[-1] if hp else (node.get("title") or node.get("label") or node["node_id"])
+    lines = [f"{head}.", "Contains:"]
+    for ch in children:
+        if ch["kind"] in ("section", "subsection"):
+            continue
+        bit = ch.get("label") or ch["kind"]
+        if ch.get("title"):
+            bit += f" ({ch['title']})"
+        lines.append(f"- {bit}")
+    return "\n".join(lines)
 
 
 # ---- §12 contextualized embed_input --------------------------------------
-def make_embed_input(node: dict, level: str) -> str:
+def make_embed_input(node: dict, level: str, body: str) -> str:
     hp = node.get("heading_path") or []
-    lines = [f"Book: {hp[0] if hp else BOOK_TITLE}"]
-    if len(hp) >= 2:
-        lines.append(hp[1])               # "Chapter 1: Euclidean Spaces"
-    if len(hp) >= 3:
-        lines.append(f"Section: {hp[2]}")  # "§7 Quotients"
+    lines = [f"Book: {BOOK_TITLE}"]
+    for h in hp:
+        lines.append(h)
     lines.append(f"Type: {node['kind'].capitalize()}")
-    if node.get("label"):
-        lines.append(f"Label: {node['label']}")
+    if node.get("match_label"):
+        lines.append(f"Label: {node['match_label']}")
     if node.get("title"):
         lines.append(f"Title: {node['title']}")
-    body = (node.get("text_raw") or "").strip()
-    return "\n".join(lines) + "\n\n" + body
+    return "\n".join(lines) + "\n\n" + (body or "").strip()
 
 
-def _tsv_source(node: dict) -> str:
+def _tsv_source(node: dict, body: str) -> str:
     hp = " ".join(node.get("heading_path") or [])
-    return " ".join(filter(None, [hp, node.get("label") or "", node.get("title") or "",
-                                   node.get("text_raw") or ""]))
+    return " ".join(filter(None, [hp, node.get("match_label") or "",
+                                   node.get("title") or "", body or ""]))
 
 
-# ---- write tables ---------------------------------------------------------
+# ---- build ----------------------------------------------------------------
 def build(pref: str, do_embed: bool) -> dict:
-    source, secs, leaves = resolve_source(pref)
-    rows: list[dict] = []
-    for n in secs:
-        rows.append({"level": "section", **n})
-    for n in leaves:
-        rows.append({"level": "leaf", **n})
+    source, nodes = resolve_source(pref)
 
-    # structured embed inputs
-    for r in rows:
-        r["embed_input"] = make_embed_input(r, r["level"])
+    by_id = {n["node_id"]: n for n in nodes}
+    # mint gold-matching labels for every node (resolves Proof->proven label)
+    for n in nodes:
+        n["match_label"] = match_label_for(n, by_id)
+
+    # group leaves under their container (parent_id) for section summaries
+    children: dict[str, list[dict]] = {}
+    for n in nodes:
+        if n.get("parent_id"):
+            children.setdefault(n["parent_id"], []).append(n)
+
+    rows: list[dict] = []
+    for n in nodes:
+        level = "section" if n["kind"] in SECTION_KINDS else "leaf"
+        body = clean_text(n.get("text_raw") or "")
+        if level == "section" and not body.strip():
+            body = synthesize_container_text(n, children.get(n["node_id"], []))
+        n["_body"] = body
+        n["_level"] = level
+        n["embed_input"] = make_embed_input(n, level, body)
+        rows.append(n)
 
     base = build_baseline_chunks()
 
     stats = {"source": source, "slice": SLICE,
-             "n_section": len(secs), "n_leaf": len(leaves),
+             "n_section": sum(1 for r in rows if r["_level"] == "section"),
+             "n_leaf": sum(1 for r in rows if r["_level"] == "leaf"),
              "n_struct": len(rows), "n_baseline": len(base)}
 
-    # embeddings
     struct_vecs = base_vecs = None
     if do_embed:
         from embed import embed_texts, DIM
@@ -142,7 +173,6 @@ def build(pref: str, do_embed: bool) -> dict:
         stats["embed_baseline"] = b_stat
 
     with connect() as conn, conn.cursor() as cur:
-        # idempotent: clear our two tables, then insert
         cur.execute(f"truncate {SCHEMA}.c_chunks;")
         cur.execute(f"truncate {SCHEMA}.c_baseline_chunks;")
         for i, r in enumerate(rows):
@@ -154,11 +184,13 @@ def build(pref: str, do_embed: bool) -> dict:
                      page_pdf_start, page_printed_start, text, embed_input, tsv, embedding, meta)
                     values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
                             to_tsvector('english', %s), %s, %s)""",
-                (chunk_id, r["level"], r["node_id"], r["kind"],
-                 r.get("heading_path") or [], r.get("label"),
+                (chunk_id, r["_level"], r["node_id"], r["kind"],
+                 r.get("heading_path") or [], r["match_label"],
                  r.get("page_pdf_start"), str(r.get("page_printed_start") or ""),
-                 (r.get("text_raw") or ""), r["embed_input"], _tsv_source(r),
+                 r["_body"], r["embed_input"], _tsv_source(r, r["_body"]),
                  emb, json.dumps({"title": r.get("title"), "proves": r.get("proves"),
+                                  "parent_id": r.get("parent_id"),
+                                  "raw_label": r.get("label"),
                                   "confidence": r.get("confidence")})),
             )
         for i, c in enumerate(base):
@@ -185,11 +217,8 @@ if __name__ == "__main__":
     ap.add_argument("--source", default="auto", choices=["auto", "a_nodes", "seed", "fitz"])
     ap.add_argument("--no-embed", action="store_true")
     args = ap.parse_args()
-    pref = "fitz" if args.source == "fitz" else args.source
+    pref = args.source
     if pref == "fitz":
-        # force the fallback by skipping a_nodes/seed
-        import builtins  # noqa
-        # simplest: monkeypatch resolvers off
         globals()["_from_a_nodes"] = lambda: None
         globals()["_from_seed"] = lambda: None
         pref = "auto"
