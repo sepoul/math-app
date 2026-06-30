@@ -92,8 +92,65 @@ naive) is deferred to R2 by design.
    each other): C's `GOLD_CONTRACT` → D; D's `harness.evaluate` API → C; A's
    node-ID + proof-node naming → B/D.
 
-## Round 2 — Graph & grounding _(pending)_
-## Round 3 — Retrieval bake-off _(pending)_
+## Round 2 — Graph & grounding + the scored bake-off (§10–15) — COMPLETE
+
+The decisive round. Workers re-engaged on their R1 sessions (context intact),
+rebuilt on the now-canonical `a_nodes`, and produced the first scored numbers.
+
+**What hardened (substrate):**
+- **A:** 584 raw math fragments → **205 true ordered equation regions**;
+  vision→LaTeX (`claude-opus-4-8`) ~0.95 confidence; **16 inline definitions**
+  recovered (Tu italicizes definienda — no `Definition N.M`); published the
+  proof-node scheme + `a_nodes.aliases` (Problem↔Exercise). `a_nodes` → 159.
+- **B:** rebuilt on machine nodes — **1,100 edges**, **0 dangling**, **0
+  structural invariant violations**; **reference resolution 87/87 = 100%**
+  (fixed the Problem↔Exercise alias); published `references` edges + flagged 6
+  genuine Track-A recall gaps for §17.
+
+**The bake-off (structured vs naive, D's gold, 26 queries):**
+
+| run | recall@5 | MRR | nDCG@5 | label-hit | trace |
+|---|---|---|---|---|---|
+| naive_baseline (node_id gold) | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
+| C hybrid_full | 0.583 | 0.663 | 0.534 | 0.423 | 1.000 |
+| **C +rerank** | **0.656** | **0.738** | **0.639** | **0.577** | 1.000 |
+| D reference retriever (floor) | 0.816 | 0.758 | 0.682 | 0.462 | 1.000 |
+| naive, page-aware (±1pp) | 0.892 | 0.728 | — | 0.000 | 0.000 |
+| structured +rerank, page-aware | 0.927 | 0.923 | — | 0.577 | 1.000 |
+
+**Reading it honestly:**
+- **Structure wins on the capabilities that matter.** Naive scores **0 on
+  label-hit and traceability by construction** — a fixed window can't name or
+  ground the unit it returns. Page-aware, naive *finds the page* (0.89) but
+  structure *returns the right typed unit, ranked first, named, and grounded*
+  (trace 1.0). For #55's "redo this exact thing (Hatcher §1.2)" that difference
+  is the whole point.
+- **LLM rerank is the single biggest ranking lift** (+0.073 recall, +0.106
+  nDCG, label-hit 0.423→0.577) at ~$0.0035/query — and D's §17 attribution
+  shows **8 of 10 residual misses are ranking-side**, so rerank + B's edges are
+  **load-bearing, not optional.**
+- **Graph-expansion as built *hurt* (−0.067)** — global neighbor injection
+  displaced direct hits → R3 redesigns it as an *intent-gated* path over B's
+  edges. Structural-category queries are the weak spot (0.31–0.37).
+- **Efficiency is comfortably GO:** warm retrieval 34–143 ms, index $0.0009,
+  per-query embed ~$2e-7, rerank ~$0.0035/q; vision→LaTeX run lazily only on
+  retrieved regions. **Cost is a non-issue; rerank latency (~3.7 s) is the only
+  thing to engineer.**
+
+**The one thing to reconcile (R3 priority):** D's *simple* reference retriever
+scored recall@5 **0.816**, but C's *elaborate* hybrid scored **0.583** (+rerank
+0.656). Either C's granular indexing + the hurtful graph-expansion costs recall,
+or the gold-matching differs. **The verdict must rest on one agreed number** —
+C+D reconcile in R3 (node_id-match rigorous, page-match honest secondary).
+
+**Decisions into R3:** (1) C+D converge to the single agreed bake-off figure;
+(2) C: intent-gated graph-expansion over B's now-live edges + coarse-to-fine
+(§12, unexploited) + tune rerank; (3) B: ship a bounded graph-expansion helper +
+close the recall-gap loop with A; (4) A: close the 6 inline `Exercise` recall
+gaps + log extraction time; (5) D: re-score C's real runs with aligned matching
++ re-run §17 attribution (watch ranking-side misses collapse).
+
+## Round 3 — Retrieval depth + reconciliation _(pending)_
 ## Round 4 — Eval & verdict _(pending)_
 
 ---
