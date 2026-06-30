@@ -266,7 +266,8 @@ class Retriever:
                w_vec=1.0, w_lex=1.0, w_type=0.6, w_label=2.0, w_graph=0.4,
                use_lexical=True, use_vector=True, use_type=True,
                use_label=True, use_graph=False, gate_graph=True,
-               coarse_to_fine=False, rerank=False, rerank_pool=12) -> list[Cand]:
+               coarse_to_fine=False, demote_sections=True,
+               rerank=False, rerank_pool=12) -> list[Cand]:
         qv = self.embed(query) if use_vector else None
         lex = self.lexical(query, pool) if use_lexical else []
         vec = self.vector(query, pool, qv=qv) if use_vector else []
@@ -281,6 +282,11 @@ class Retriever:
         tgts = [t.lower() for t in label_targets(query)] if use_label else []
         # coarse-to-fine (§12): boost leaves whose section was top-ranked among sections
         cf_sections = self._coarse_sections(query, qv, k=3) if coarse_to_fine else set()
+        # a query explicitly ABOUT a section ("list the subsections of §3") should
+        # keep section nodes; otherwise the answer unit is a leaf, so demote
+        # section/subsection nodes (R4 ceiling fix: they were out-ranking the gold
+        # leaf — e.g. §2 above Theorem 2.2).
+        section_query = bool(re.search(r"\b(subsection|section|§|atlas|chapter)\b", query, re.I))
 
         scored: list[Cand] = []
         for cid, h in by_id.items():
@@ -289,26 +295,50 @@ class Retriever:
             tb = boosts.get(h.kind, 0.0) if (use_type and h.kind) else 0.0
             lb = 1.0 if (use_label and h.label and h.label.lower() in tgts) else 0.0
             cf = 0.3 if (coarse_to_fine and self._parent_section(h) in cf_sections) else 0.0
-            final = w_vec * vv + w_lex * lv + w_type * tb + w_label * lb + cf
+            sd = (-0.6 if (demote_sections and not section_query
+                          and h.kind in ("section", "subsection")) else 0.0)
+            final = w_vec * vv + w_lex * lv + w_type * tb + w_label * lb + cf + sd
             sig = {"vector_n": round(vv, 3), "lexical_n": round(lv, 3),
                    "type_boost": tb, "label_boost": lb}
             if cf:
                 sig["coarse_to_fine"] = cf
+            if sd:
+                sig["section_demote"] = sd
             scored.append(Cand(h.chunk_id, h.node_id, h.kind, h.label, h.heading_path,
                                h.page, h.text, final, sig))
         scored.sort(key=lambda x: x.score, reverse=True)
 
-        # intent-gated graph expansion: only for structural/graph-expansion queries
+        # intent-gated graph expansion: only for structural/graph-expansion queries.
+        # For these, the expanded NEIGHBOUR is often the answer itself ("what comes
+        # after Theorem 7.7" -> the next-edge Corollary 7.8). R4 ceiling fix: score
+        # neighbours just BELOW the top seed (not base*0.5) so they enter the rerank
+        # pool + top-k; weight by edge type (adjacency/proof/containment > references).
         do_expand = use_graph and (not gate_graph or is_structural_intent(query))
         if do_expand:
-            top_seeds = scored[:5]
-            base = scored[0].score if scored else 1.0
-            present = {c.chunk_id for c in scored}
+            # expand from the TOP-2 seeds only: "what comes after Theorem 7.7" wants
+            # Theorem 7.7's neighbours, not the next-sibling of every top-5 result
+            # (which floods top-k with neighbours of irrelevant seeds).
+            top_seeds = scored[:2]
+            top = scored[0].score if scored else 1.0
+            edge_w = {"next": 0.95, "previous": 0.95, "proven_by": 0.9,
+                      "contains": 0.85, "references": 0.7, "referenced_by": 0.7}
+            by_cid = {c.chunk_id: c for c in scored}
             for nb in self.expand(top_seeds):
-                if nb.chunk_id not in present:
-                    nb.score = base * 0.5 + w_graph  # strictly below seeds
+                et = nb.signals.get("graph", "")
+                gscore = top * edge_w.get(et, 0.6)  # just below the top seed
+                existing = by_cid.get(nb.chunk_id)
+                if existing is None:                       # inject absent neighbour
+                    nb.score = gscore
                     nb.signals = {**nb.signals, "graph_injected": True}
                     scored.append(nb)
+                    by_cid[nb.chunk_id] = nb
+                elif gscore > existing.score:               # PROMOTE present neighbour
+                    # the next/contains/proven_by neighbour IS the structural answer
+                    # ("what comes after X") — boost it even if lexical/vector already
+                    # retrieved it at a weak rank (the R4 D-017 miss: Corollary 7.8 was
+                    # at rank 6 because it was 'present' and never graph-promoted).
+                    existing.score = gscore
+                    existing.signals = {**existing.signals, "graph_promoted": et}
             scored.sort(key=lambda x: x.score, reverse=True)
 
         if rerank:
@@ -374,3 +404,51 @@ def make_baseline_fn(r: "Retriever", mode: str = "vector"):
                  else r.baseline_lexical(query, k))
         return [c.as_dict() for c in cands]
     return fn
+
+
+# ============================================================================
+# LOCKED CANONICAL CONFIG (R4 close-out) — this is THE Track C system.
+# Track D scores this ONE config; no more cross-round drift.
+#
+# C_full = lexical FTS + pgvector, min-max fused, with:
+#   * type boost   (intent->kind, spec §13)
+#   * label boost  (exact "Theorem 7.7"-style label match)
+#   * INTENT-GATED graph expansion (structural/graph-expansion queries only;
+#     walks B's b_node_edges proven_by/next/previous/contains/references,
+#     scored strictly below seeds — neutral on aggregate recall, lifts
+#     structural/graph_expansion MRR)
+#   * COARSE-TO-FINE (§12: retrieve top-3 section nodes, boost their leaves)
+#   * RERANK (claude-haiku-4-5 over the top `rerank_pool`, latency-tuned)
+#
+# pool=POOL widens the candidate set (R4 strict-recall ceiling work).
+# Corpus: c_chunks rebuilt from a_nodes (run track-a-r1, frozen). Score against
+# the FILE gold (queries/gold.json / _vendor_gold.json — carries page_pdf), with
+# match_mode="auto" for structured, "page" for the label-less baseline.
+# ============================================================================
+POOL = 50  # R4: widened from 30 to lift strict recall (the right unit was found
+           # on-page but ranked outside the fused pool for a few queries).
+
+C_FULL_CFG = dict(
+    pool=POOL,
+    use_lexical=True, use_vector=True,
+    use_type=True, use_label=True,
+    use_graph=True, gate_graph=True,
+    coarse_to_fine=True,
+    rerank=True, rerank_pool=12,
+)
+
+
+def c_full_retrieve_fn(r: "Retriever"):
+    """THE locked Track C retriever. Importable for Track D:
+
+        from retrieve_r2 import Retriever, c_full_retrieve_fn
+        r = Retriever()
+        fn = c_full_retrieve_fn(r)              # fn(query_text, k) -> list[dict]
+        report = evaluate(fn, "C_full", k=10, match_mode="auto", gold=<file gold>)
+        r.close()
+
+    Each result dict carries node_id / chunk_id / score / label / page_pdf_start /
+    heading_path / signals — everything the harness needs for node_id, label, and
+    page matching plus source-traceability.
+    """
+    return make_retrieve_fn(r, **C_FULL_CFG)

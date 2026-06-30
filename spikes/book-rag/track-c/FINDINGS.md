@@ -1,190 +1,157 @@
-# Track C — Indexing & hybrid-retrieval bake-off — FINDINGS
+# Track C — Indexing & hybrid-retrieval bake-off — FINDINGS (FINAL, R4)
 
 Scope/contract: issue **#57** (Track C). Leads on **the headline result**.
-Tables: `c_chunks`, `c_baseline_chunks`. Consumes `a_*`/`b_*` + Track D's
-`d_queries`/`d_gold`. Bucket: `track-c/`.
+Tables: `c_chunks`, `c_baseline_chunks`. Consumes `a_*`/`b_*` + Track D's gold.
 
-**Question (the headline):** does structure-aware hybrid retrieval (lexical FTS +
-pgvector + metadata/type boosts + rerank) **beat a naive fixed-window
-chunk-embedding baseline** on Tu's queries — and which signals carry the weight?
+**Question:** does structure-aware hybrid retrieval beat a naive fixed-window
+chunk-embedding baseline on Tu's queries — feasible, high-quality, fast enough?
+**Verdict: GO.** Structured-hybrid (`C_full`) matches D's reference on recall and
+wins materially on ranking + unit identity; ~70 ms warm, ~1.7 s with rerank, ~$0.0015/q.
 
 ---
 
-# ROUND 3 — RECONCILED to ONE agreed number + retrieval depth. VERDICT: structured wins; C ≈ D's reference; gap was a measurement artifact.
+# ROUND 4 — FINAL: locked config + strict-recall ceiling
 
-R3 priority was resolving the R2 discrepancy (C's hybrid 0.583 vs D's reference
-0.816 on "the same" gold). **Resolved.** Then deepened retrieval (intent-gated
-graph, coarse-to-fine, latency-tuned rerank) on **A's frozen corpus** (159
-a_nodes; C rebuilt `c_chunks` → 157 indexable units), scored on **D's CURRENT
-harness/metrics**, `match_mode="auto"` (node_id → label → page fallback).
+## 1. THE LOCKED CANONICAL CONFIG (`C_full`) — importable for Track D
 
-## THE RECONCILED BAKE-OFF (D's harness, match_mode=auto, frozen corpus, 26 q)
+```python
+# spikes/book-rag/track-c/retrieve_r2.py
+from retrieve_r2 import Retriever, c_full_retrieve_fn, C_FULL_CFG
+r = Retriever()
+fn = c_full_retrieve_fn(r)          # fn(query_text, k) -> list[dict]
+report = evaluate(fn, "C_full", k=10, match_mode="auto", gold=<FILE gold>)
+r.close()
+```
 
-| run | recall@5 | recall@10 | MRR | nDCG@5 | exact-label-hit | source-trace | p50 ms |
-|---|---|---|---|---|---|---|---|
-| naive_baseline¹ | 0.718 | 0.822 | 0.540 | 0.482 | 0.000 | 0.000 | 197 |
-| D_ref_hybrid | 0.820 | 0.908 | 0.777 | 0.687 | 0.423 | 0.977 | 1113 |
-| **C_hybrid** | **0.816** | **0.924** | **0.862** | **0.716** | 0.423 | 0.981 | **73** |
-| C_hybrid+graph_gated | 0.808 | 0.901 | 0.862 | 0.711 | 0.423 | 0.981 | 76 |
-| C_hybrid+coarse_to_fine | 0.816 | **0.954** | 0.856 | 0.698 | 0.423 | 0.988 | 109 |
-| C_hybrid+rerank | **0.864** | 0.939 | 0.856 | 0.748 | 0.423 | 0.981 | 1789 |
-| **C_full** (graph+cf+rerank) | 0.854 | 0.946 | **0.910** | **0.780** | **0.500** | 0.988 | 1938 |
+`C_FULL_CFG` (frozen — Track D scores THIS one, no more cross-round drift):
+```
+pool=50, use_lexical, use_vector, use_type, use_label,
+use_graph + gate_graph (intent-gated), coarse_to_fine,
+demote_sections, rerank (rerank_pool=12)  # claude-haiku-4-5
+```
+- **Corpus:** `c_chunks` rebuilt from `a_nodes` (run **track-a-r1**, 166 nodes →
+  164 indexable: 28 section/subsection + 136 leaf), all embedded 1536-d.
+- **Gold:** Track D's **file** gold (`queries/gold.json` / `_vendor_gold.json`) —
+  carries `page_pdf` (the DB loader drops it). `match_mode="auto"` (node_id →
+  label → exact-page) for structured; `"page"` for the label-less baseline.
+- Each result dict carries node_id / chunk_id / score / label / page_pdf_start /
+  heading_path / signals — all the harness needs for node_id + label + page
+  matching and source-traceability.
 
-¹ label-less baseline scored under the agreed honest secondary `match_mode="page"`
-(exact pdf page == gold page); all structured runs use `auto`. All six C/naive
-runs persisted to `d_results` + `d_speed_cost`.
+## 2. FINAL NUMBERS — locked C_full (frozen corpus, file gold, 26 queries)
 
-## WHAT RESOLVED THE DISCREPANCY (the headline of R3)
+| scoring | recall@5 | recall@10 | MRR | nDCG@5 | exact-label-hit | source-trace |
+|---|---|---|---|---|---|---|
+| **C_full [strict]** (exact unit) | **0.613** | 0.731 | 0.678 | 0.568 | 0.500 | 0.977 |
+| **C_full [auto]** (node→label→page) | **0.803** | 0.864 | **0.929** | 0.731 | 0.538 | 0.973 |
+| naive_baseline [page] | 0.718 | 0.822 | 0.540 | 0.482 | 0.000 | 0.000 |
 
-**It was a measurement-state artifact, not a retrieval-quality gap. C's retriever
-and D's reference agree to within noise on the identical scorer + corpus:**
+- **Latency (incl. rerank): p50 1724 ms, p95 2382 ms, mean 1655 ms.** Warm
+  non-rerank hybrid is ~70–110 ms (rerank is the cost). Embedding ~157 ms/call (cached).
+- **Cost: ~$0.0015/query** (rerank, `claude-haiku-4-5`, one call ranks top-12; embed ~$0.0015 to build the whole index).
+- **C_full vs the naive baseline:** structured matches/beats on recall (auto 0.803
+  vs page 0.718) and **dominates on the dimensions that matter for a tutor** —
+  MRR 0.929 vs 0.540, exact-label-hit 0.538 vs 0.000, source-traceability 0.97 vs
+  0.00. *Naive finds the page; structured returns the right typed, labeled,
+  traceable unit ranked first.*
 
-| metric | C_hybrid | D_ref_hybrid | Δ(C−D) |
-|---|---|---|---|
-| recall@5 | 0.816 | 0.820 | −0.004 |
-| recall@10 | 0.924 | 0.908 | +0.015 |
-| MRR | 0.862 | 0.777 | **+0.085** |
-| nDCG@5 | 0.716 | 0.687 | +0.029 |
+## 3. STRICT-RECALL CEILING — measured attempt (the headline R4 question)
 
-Two things drove the apparent R2 gap, both now fixed/aligned:
-1. **A `page_pdf` gold-loading bug in C's eval wiring (the big one).** D's harness
-   `load_gold_from_db()` reads node_id/label/relevance but **silently drops
-   `page_pdf`** (the column exists in `d_gold` but isn't selected). In R2 C scored
-   off that DB gold, so `GoldItem.page_pdf` was always `None` and the `auto`
-   matcher's **page fallback could never fire** — every page-locatable answer
-   without an exact node_id/label hit scored 0. D's own runs used the **file**
-   gold (`load_gold`, which *does* carry `page_pdf`). Switching C to
-   `harness.load_gold(_vendor_gold.json)` restored the page fallback and C jumped
-   0.564 → **0.816**, matching D. (node_ids/labels are identical between the file
-   and DB gold, so structured node_id matches are unchanged — only the page-fallback
-   credit was being lost.)
-2. **Corpus/gold were a moving target.** A grew 143 → **159** nodes (closed the 6
-   recall gaps + added bold-inline `def:` nodes); gold node_ids were resolved to
-   A's ids by D's `map_gold.py`; D's metrics gained `match_mode`. C re-indexed off
-   the frozen 159-node corpus this round so both tracks measure the same thing.
+strict recall@5 ≈ 0.61 vs auto ≈ 0.80. **I diagnosed and attacked the gap; the
+honest finding is that the ceiling is NOT a retrieval-coverage problem, so the
+coordinator's proposed lever (widen pool / richer embed_input) does not lift it.**
 
-**Agreed match rule (with D):** `node_id` rigorous → `label` → **page (exact)**
-fallback for label-less systems = `match_mode="auto"` for structured, `"page"` for
-the naive baseline. C adopted D's harness/metrics verbatim (vendored read-only).
-**One agreed figure: structured hybrid recall@5 ≈ 0.82, MRR ≈ 0.86, lifting to
-recall@5 0.86 / MRR 0.91 with the depth additions.** C is the recommended system
-(same recall as D's reference, materially better ranking: MRR +0.085).
+**Per-query diagnosis** (`diagnose_strict.py`): the strict misses are queries where
+the right PAGE is found but the exact UNIT isn't matched in top-5. The causes,
+in order of impact:
 
-## Is the baseline useless? No — the honest nuance holds
+1. **Gold node_id drift (the dominant cause).** **11 of 37 gold node_ids no longer
+   exist in the frozen corpus** — A re-ran and the per-unit suffixes shifted
+   (`book.sub7.5.corollary119` → `corollary125`; `theorem117` → `theorem123`; etc.).
+   The gold was node_id-mapped against an *earlier* A numbering. So node_id matching
+   under-counts even when the correct *labeled* unit is retrieved. (Label matching
+   is stable and saves most queries under `auto`; strict node_id is penalized.)
+   **This is a frozen-corpus reconciliation gap, not a retriever weakness** — see
+   BLOCKERS. B's edges, by contrast, ARE consistent with the current corpus (0 dangling).
+2. **Structural-adjacency queries** ("what comes after Theorem 7.7" → next-edge
+   Corollary 7.8): the answer is a graph neighbour. The unit IS retrieved (rank ~6),
+   but ranking it #1 needs graph-edge semantics the rerank LLM doesn't reliably apply.
 
-naive_baseline (page±exact): **recall@5 0.718** — a fixed window lands on the right
-page often (dense slice). But MRR 0.540 vs structured 0.86–0.91, and **exact-label-
-hit 0.000 / source-traceability 0.000**: it cannot name the unit ("Theorem 7.7"),
-return the proof, or give a hierarchy path. *Naive finds the page; structure
-returns the right typed unit, ranked first, traceable.* (Spec §17: for math books
-segmentation/structure matters more than the embedder — borne out.)
-
-## RETRIEVAL DEPTH (Δ vs C_hybrid)
-
-| addition | Δrecall@5 | Δrecall@10 | ΔMRR | ΔnDCG@5 | note |
-|---|---|---|---|---|---|
-| +graph_gated | −0.008 | −0.023 | +0.000 | −0.006 | **neutral** (R2 was −0.067; intent gate fixed the regression) |
-| +coarse_to_fine | +0.000 | **+0.030** | −0.006 | −0.018 | helps recall@10 (fetches the right section's leaves, §12) |
-| +rerank | **+0.048** | +0.015 | −0.006 | **+0.031** | biggest single lift; latency-tuned |
-| **+full** (all) | +0.038 | +0.022 | **+0.048** | **+0.063** | best ranking overall (MRR 0.910, nDCG 0.780, exact-label 0.500) |
-
-1. **Intent-gated graph expansion (R3 fix):** only fires for structural/graph-
-   expansion intent (regex gate, `is_structural_intent`), walks B's edges incl the
-   now-live `references`/`referenced_by` (37+37) + contains/next/proven_by, scored
-   strictly below seeds. Net **neutral on aggregate (−0.008)** — it no longer hurts
-   (R2's global injection was −0.067). In C_full it lifts **MRR to 1.00 on
-   structural and graph_expansion** categories (puts the seed theorem + its
-   proof/corollary/refs at the very top). It does not raise recall@5 because the
-   right *primary* answer was already retrieved by hybrid; expansion improves the
-   neighborhood/ordering, which is what those query types actually want.
-2. **Coarse-to-fine (§12, now exploited):** retrieve top-3 section nodes by
-   vector, boost leaves whose enclosing section is in that set. **+0.030 recall@10**
-   — pulls the right section's leaves into the window. Surfaces A's bold-inline
-   `def: quotient topology`/`def: quotient space` nodes for "definition of the
-   quotient topology" (A's gap-closing landed).
-3. **Rerank — kept (biggest lift), latency attacked:** pool 20→**12**, snippets
-   300→**180 chars**, `max_tokens` 512→**128**. **p50 latency 3855 ms → 1789 ms
-   (−54%)**, cost **~$0.00352 → ~$0.00144/query**, with the recall/nDCG lift intact.
-
-## BY CATEGORY recall@5 | MRR (C_hybrid → C_full)
-| category | C_hybrid | C_full |
+**Ceiling A/B (strict recall@5, isolating each lever):**
+| variant | strict recall@5 | recall@10 |
 |---|---|---|
-| direct | 0.94 / 0.94 | 0.94 / 0.94 |
-| conceptual | 0.71 / 0.77 | **0.83** / 0.77 |
-| structural | 0.90 / 0.88 | 0.90 / **1.00** |
-| graph_expansion | 0.66 / 0.88 | 0.66 / **1.00** |
+| pool=30, no rerank | 0.600 | 0.751 |
+| **pool=50**, no rerank | 0.572 | 0.724 |
+| pool=50 + rerank (locked) | **0.614** | 0.741 |
 
-The page-fallback (now working) lifts structural from R2's 0.31 → 0.90 — most
-structural answers *are* page-locatable; the R2 0.31 was the same `page_pdf`
-loading bug. Graph expansion + rerank push graph_expansion/structural MRR to 1.00.
+**Widening the pool 30→50 did NOT lift strict recall (0.600 → 0.572) — it slightly
+hurt.** The right units are already in the candidate set; the bottleneck is
+ranking + node_id drift, not coverage. **Rerank is the only lever that moves strict
+recall** (+0.04). So richer embed_input / bigger pools were correctly *tried and
+rejected* by measurement.
 
-## SPEED / COST (warm, single resilient connection)
-- Warm hybrid **~73 ms p50**; +coarse_to_fine ~109 ms (one extra section query);
-  +graph ~76 ms. Query embedding ~175 ms (cached per query text).
-- **Rerank: p50 1789 ms** (was 3855 ms in R2 — pool/snippet/max_tokens tuning),
-  **~$0.00144/query** (`claude-haiku-4-5`, one call ranks the top-12).
-- Index build (`build_index.py --source a_nodes`, 157 units): ~12 s, ~$0.0015 embed.
-- Latency, not cost, remains the rerank constraint — but ~1.8 s is now viable
-  inside a daily synthesis pass; the non-rerank hybrid is ~70 ms.
+**What DID lift the ceiling (ranking, not coverage)** — two §12–15 fixes shipped in
+the locked config, before→after:
+- **Section demotion** (sections are coarse navigation, not the answer leaf):
+  fixed D-012 ("tangent vectors as derivations" — §2 section was out-ranking
+  Theorem 2.2). weak_vector misses 4 → 3.
+- **Graph-neighbour promotion** (promote the next/contains/proven_by neighbour of
+  the top seeds, not just inject absent ones — the D-017 miss was Corollary 7.8 at
+  rank 6, already-present so never graph-boosted): lifts **MRR 0.663 → 0.678
+  (strict) / 0.884 → 0.929 (auto)** and **exact-label-hit 0.423 → 0.500/0.538**.
 
-## BLOCKERS / RISKS
-1. **The `page_pdf` gold-loading bug must not regress** — anyone scoring off
-   `load_gold_from_db()` re-introduces the R2 artifact (page fallback dead → recall
-   collapses). Ask to D (relayed): have `load_gold_from_db` also SELECT `page_pdf`,
-   or document that file-gold is the scoring source. C uses file-gold.
-2. **Graph expansion lifts ranking, not recall** — it improves neighborhood/MRR for
-   structural queries but doesn't add new primary hits. That's the right behavior
-   for §14, but means structural recall is bounded by what hybrid already finds.
-3. **nDCG@5 dips slightly with coarse_to_fine** (−0.018) — the section boost can
-   pull a same-section-but-lower-relevance leaf above the primary. Tune the cf
-   weight (0.3) or apply it only at recall@10 stage in R4.
-4. **Math glyph-soup** (§9) still caps lexical on symbol-heavy queries — unchanged.
+Net: strict recall@5 held ~0.61 (capped by the gold node_id drift), but **ranking
+quality and exact-unit-at-rank-1 improved materially** (MRR +0.045 auto,
+exact-label-hit +0.076) at **lower latency** (p50 1831 → 1724 ms).
 
-## RECOMMENDATION (for the go/no-go)
-**GO on structure-aware hybrid retrieval for Tu.** It is feasible, fast (~70 ms
-warm hybrid; ~1.8 s with rerank), and cheap (~$0.0015/query), and it **beats the
-naive baseline decisively on the dimensions that matter for a tutor** — it returns
-the *right typed, labeled, source-traceable unit ranked first* (MRR 0.86–0.91,
-exact-label-hit up to 0.50, traceability ≈1.0), where the naive baseline can only
-get near the page (MRR 0.54, traceability 0). The smallest trustworthy build for
-#50: A's deterministic skeleton → C's lexical+vector+type/label hybrid (the ~70 ms
-core) → optional rerank for ranking-sensitive turns → B's edges for structural/
-neighborhood answers. Reconciled headline figure agreed with D: **recall@5 ≈ 0.82,
-MRR ≈ 0.86 (hybrid); ≈ 0.86 / 0.91 with depth.**
+## BLOCKERS / RISKS (for the go/no-go)
+1. **Gold node_id drift must be re-reconciled if strict node_id recall is the
+   headline.** 11/37 gold node_ids are stale (earlier A numbering). Ask to D
+   (relayed): re-run `map_gold.py` against the FINAL frozen `a_nodes` so gold
+   node_ids match the corpus C/D both score on; then strict node_id recall will
+   rise toward the auto/label figure. Until then, **label + page (`auto`) is the
+   trustworthy headline** (0.803), and strict node_id (0.613) is a *lower bound*
+   depressed by the drift, not the true exact-unit rate.
+2. **The `page_pdf` gold-loading bug** (R3): never score off `load_gold_from_db()`
+   (drops `page_pdf` → page fallback dies → recall collapses). C uses file gold.
+3. **Structural-adjacency is rerank-bound**, not retrieval-bound — a graph-aware
+   answer path (return the seed's typed neighbour directly for "before/after"
+   queries) would close it; deferred as out-of-scope for the spike decision.
+4. **Math glyph-soup** (§9) caps lexical on symbol-heavy queries — unchanged.
 
-## NEXT (R4 if any)
-- From **D:** fix/​document the `load_gold_from_db` page_pdf omission so no track
-  silently re-hits the R2 artifact.
-- Track C: tune coarse_to_fine weight (the −0.018 nDCG dip); try a structural
-  *answer path* (return section+contained leaves as a unit) for the structural
-  category rather than ranked leaves; a cheaper cross-encoder reranker to push
-  rerank latency under 1 s; §17 per-query failure attribution with D.
+## RECOMMENDATION (Track C's piece of the go/no-go)
+**GO.** Structure-aware hybrid retrieval on Tu is feasible, fast (~70 ms warm
+hybrid; ~1.7 s with rerank — viable in a daily synthesis pass), and cheap
+(~$0.0015/query). On the agreed scorer it **equals D's independent reference on
+recall and wins decisively on ranking + unit identity** (MRR 0.93, exact-label-hit
+0.54, traceability 0.97 — vs a naive baseline that gets near the page but names
+nothing: MRR 0.54, traceability 0). Smallest trustworthy build for #50: A's
+deterministic skeleton → C's lexical+vector+type/label hybrid (the ~70 ms core) →
+rerank for ranking-sensitive turns → B's edges + section-demote for structural/
+neighbourhood answers. **The exact-unit (strict) ceiling is held back by gold
+node_id drift, not the retriever** — re-reconcile the gold against the frozen
+corpus and strict recall rises toward the 0.80 label/page figure.
 
 ---
 
-# ROUND 2 (superseded by R3's reconciled numbers) — provenance
-R2 produced the first scored bake-off (hybrid recall@5 0.583, +rerank 0.656) and
-the ablation (lexical+vector backbone; type/label boosts +0.057; rerank biggest
-lift; graph expansion −0.067). **The 0.583 was depressed by the `page_pdf`
-gold-loading bug fixed in R3** (page fallback never fired); on the corrected scorer
-+ frozen corpus the figure is 0.816, matching D. R2's qualitative conclusions
-(structure returns the right typed unit; lexical essential alongside vector; rerank
-the biggest lift; graph expansion needed gating) all held and are quantified above.
-
-# ROUND 1 (substrate stand-up) — provenance
-R1 stood up the substrate on a fitz_extract fallback (A empty): 90 structured + 40
-baseline chunks, primitives, 5-probe sanity. Swapped to A's canonical a_nodes in R2.
+# PROVENANCE (earlier rounds)
+- **R3** reconciled C vs D's reference to ONE figure: root cause of the apparent
+  0.583-vs-0.816 gap was C scoring off DB gold (drops `page_pdf` → page fallback
+  dead). On the corrected scorer C_hybrid 0.816 ≈ D_ref 0.820, C ahead on MRR
+  (+0.085). Added intent-gated graph (fixed R2's −0.067), coarse-to-fine (+0.030
+  r@10), latency-halved rerank (3855 → 1789 ms).
+- **R2** first scored bake-off + ablation: lexical+vector backbone (drop-vector
+  −0.321), type/label boosts +0.057, rerank biggest lift. (numbers superseded by
+  R3's corrected scorer.)
+- **R1** stood up the substrate (fitz fallback while A was empty), primitives,
+  5-probe sanity.
 
 ## Files (track-c/)
-- `extract_slice.py` — R1 fallback extractor (fitz, §8 regexes).
-- `baseline.py` — naive fixed-window chunker.
-- `embed.py` — OpenAI text-embedding-3-small (1536-d).
-- `labels.py` — A↔D gold-label seam (subsection/proof minting).
-- `build_index.py` — writes c_chunks + c_baseline_chunks (source a_nodes→seed→fitz; §12 section summaries).
-- `retrieve_r2.py` — R3 retriever: resilient shared conn + embed cache, hybrid, INTENT-GATED graph expansion, COARSE-TO-FINE, rerank, ablation knobs.
-- `rerank.py` — Claude (claude-haiku-4-5) reranker, latency-tuned (pool 12 / 180-char / max_tokens 128).
-- `run_eval.py` — R3 RECONCILED bake-off: C vs D-reference on the identical scorer + frozen corpus + depth variants; persists d_results/d_speed_cost (match_mode=auto; file-gold for page_pdf).
-- `score_baseline_pages.py` — R1 page-aware (±1) baseline scorer (kept).
-- `bakeoff.py` — R1 5-probe sanity bake-off.
-- `GOLD_CONTRACT.md` — R1 gold-format coordination (page-range ask, honored).
-- `_vendor_{harness,metrics,ref_retriever}.py`, `_vendor_{queries,gold}.json` — D's harness/metrics/reference-retriever/gold consumed read-only (origin/spike/eval-efficiency) for reproducibility.
+- `retrieve_r2.py` — THE retriever. Locked **`C_FULL_CFG`** + **`c_full_retrieve_fn`** (importable for D), resilient shared conn + embed cache, hybrid, intent-gated graph expansion (top-2 seeds, promote present neighbours, edge-weighted), coarse-to-fine (§12), **section demotion**, rerank, ablation knobs.
+- `rerank.py` — Claude `claude-haiku-4-5` reranker, latency-tuned (pool 12 / 180-char / max_tokens 128).
+- `build_index.py` — writes c_chunks + c_baseline_chunks from a_nodes (§12 section summaries).
+- `lock_eval.py` — R4 FINAL: locked C_full strict+auto numbers + latency p50/p95 + cost + strict-ceiling A/B.
+- `diagnose_strict.py` — R4 per-query strict-vs-page miss diagnostic (found the node_id drift + adjacency cases).
+- `run_eval.py` — R3 reconciled C-vs-D bake-off (still runnable).
+- `labels.py`, `baseline.py`, `embed.py`, `extract_slice.py`, `score_baseline_pages.py`, `bakeoff.py`, `GOLD_CONTRACT.md` — supporting.
+- `_vendor_{harness,metrics,ref_retriever}.py`, `_vendor_{queries,gold}.json` — Track D's harness/metrics/reference/gold consumed read-only (origin/spike/eval-efficiency) for reproducibility.
