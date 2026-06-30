@@ -1,0 +1,74 @@
+[
+  {
+    "from_node_id": "book.sec7",
+    "to_node_id": "book.sub7.1",
+    "edge_type": "contains",
+    "confidence": 0.95,
+    "evidence": [
+      "hierarchy"
+    ]
+  },
+  {
+    "from_node_id": "book.sec7",
+    "to_node_id": "book.sub7.2",
+    "edge_type": "contains",
+    "confidence": 0.95,
+    "evidence": [
+      "hierarchy"
+    ]
+  },
+  {
+    "from_node_id": "book.sub7.2",
+    "to_node_id": "book.sub7.2.proposition105",
+    "edge_type": "contains",
+    "confidence": 0.95,
+    "evidence": [
+      "hierarchy"
+    ]
+  },
+  {
+    "from_node_id": "book.sub7.2",
+    "to_node_id": "book.sub7.2.proof106",
+    "edge_type": "contains",
+    "confidence": 0.95,
+    "evidence": [
+      "hierarchy"
+    ]
+  },
+  {
+    "from_node_id": "book.sub7.2.proof106",
+    "to_node_id": "book.sub7.2.proposition105",
+    "edge_type": "proven_by",
+    "confidence": 0.9,
+    "evidence": [
+      "proof follows theorem-like item"
+    ]
+  },
+  {
+    "from_node_id": "book.sub7.3.proof110",
+    "to_node_id": "book.sub7.3.proposition109",
+    "edge_type": "proven_by",
+    "confidence": 0.9,
+    "evidence": [
+      "proof follows theorem-like item"
+    ]
+  },
+  {
+    "from_node_id": "book.sec7",
+    "to_node_id": "book.sub7.5",
+    "edge_type": "contains",
+    "confidence": 0.95,
+    "evidence": [
+      "hierarchy"
+    ]
+  },
+  {
+    "from_node_id": "book.sub7.5",
+    "to_node_id": "book.sub7.5.definition115",
+    "edge_type": "contains",
+    "confidence": 0.95,
+    "evidence": [
+      "hierarchy"
+    ]
+  }
+]

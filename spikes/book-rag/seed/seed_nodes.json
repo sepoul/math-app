@@ -1,0 +1,279 @@
+[
+  {
+    "node_id": "book.sec7",
+    "parent_id": "book.ch2",
+    "kind": "section",
+    "label": "7",
+    "title": "Quotients",
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients"
+    ],
+    "page_pdf_start": 90,
+    "page_pdf_end": 103,
+    "page_printed_start": "71",
+    "page_printed_end": null,
+    "text_normalized": "",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.98,
+    "evidence": [
+      "matched §N pattern",
+      "font 14.3pt >= section threshold",
+      "matched outline §-entry"
+    ]
+  },
+  {
+    "node_id": "book.sub7.1",
+    "parent_id": "book.sec7",
+    "kind": "subsection",
+    "label": "7.1",
+    "title": "The Quotient Topology",
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.1 The Quotient Topology"
+    ],
+    "page_pdf_start": 90,
+    "page_pdf_end": 90,
+    "page_printed_start": "71",
+    "page_printed_end": "71",
+    "text_normalized": "",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.93,
+    "evidence": [
+      "matched N.M pattern",
+      "bold 12pt",
+      "matched outline subsection-entry"
+    ]
+  },
+  {
+    "node_id": "book.sub7.2",
+    "parent_id": "book.sec7",
+    "kind": "subsection",
+    "label": "7.2",
+    "title": "Continuity of a Map on a Quotient",
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.2 Continuity of a Map on a Quotient"
+    ],
+    "page_pdf_start": 91,
+    "page_pdf_end": 91,
+    "page_printed_start": "72",
+    "page_printed_end": "72",
+    "text_normalized": "",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.93,
+    "evidence": [
+      "matched N.M pattern",
+      "bold 12pt",
+      "matched outline subsection-entry"
+    ]
+  },
+  {
+    "node_id": "book.sub7.2.proposition105",
+    "parent_id": "book.sub7.2",
+    "kind": "proposition",
+    "label": "Proposition 7.1",
+    "title": null,
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.2 Continuity of a Map on a Quotient"
+    ],
+    "page_pdf_start": 91,
+    "page_pdf_end": 91,
+    "page_printed_start": "72",
+    "page_printed_end": "72",
+    "text_normalized": "Proposition 7.1. The induced map ¯f : S/∼→Y is continuous if and only if the map f : S →Y is continuous.",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.95,
+    "evidence": [
+      "bold 10pt",
+      "keyword proposition"
+    ]
+  },
+  {
+    "node_id": "book.sub7.2.proof106",
+    "parent_id": "book.sub7.2",
+    "kind": "proof",
+    "label": "Proof",
+    "title": null,
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.2 Continuity of a Map on a Quotient"
+    ],
+    "page_pdf_start": 91,
+    "page_pdf_end": 92,
+    "page_printed_start": "72",
+    "page_printed_end": "73",
+    "text_normalized": "Proof. (⇒) If ¯f is continuous, then as the composite ¯f ◦π of continuous functions, f is also continuous. (⇐) Suppose f is continuous. Let V be open in Y. Then f −1(V) = π−1( ¯f −1(V)) is open in S. By the definition of quotient topology, ¯f −1(V) is open in S/∼. Since V was arbitrary, ¯f : S/∼→Y is continuous. ⊓⊔ This proposition gives a useful criterion for checking whether a function ¯f on a quotient space S/∼is continuous: simply lift the function ¯f to f := f ◦π on S and check the continui",
+    "proves": "book.sub7.2.proposition105",
+    "math_region_ids": [
+      "track-a-r1-p91-eq10"
+    ],
+    "confidence": 0.95,
+    "evidence": [
+      "italic 10pt",
+      "keyword proof",
+      "attached to preceding proposition Proposition 7.1"
+    ]
+  },
+  {
+    "node_id": "book.sub7.3.example108",
+    "parent_id": "book.sub7.3",
+    "kind": "example",
+    "label": "Example 7.2",
+    "title": null,
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.3 Identification of a Subset to a Point"
+    ],
+    "page_pdf_start": 92,
+    "page_pdf_end": 92,
+    "page_printed_start": "73",
+    "page_printed_end": "73",
+    "text_normalized": "Example 7.2. Let I be the unit interval [0,1] and I/∼the quotient space obtained from I by identifying the two points {0,1} to a point. Denote by S1 the unit circle in the complex plane. The function f : I →S1, f(x) = exp(2πix), assumes the same value at 0 and 1 (Figure 7.2), and so induces a function ¯f : I/∼→S1. f 0 1 Fig. 7.2. The unit circle as a quotient space of the unit interval.",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.93,
+    "evidence": [
+      "italic 10pt",
+      "keyword example"
+    ]
+  },
+  {
+    "node_id": "book.sub7.3.proposition109",
+    "parent_id": "book.sub7.3",
+    "kind": "proposition",
+    "label": "Proposition 7.3",
+    "title": null,
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.3 Identification of a Subset to a Point"
+    ],
+    "page_pdf_start": 92,
+    "page_pdf_end": 92,
+    "page_printed_start": "73",
+    "page_printed_end": "73",
+    "text_normalized": "Proposition 7.3. The function ¯f : I/∼→S1 is a homeomorphism.",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.95,
+    "evidence": [
+      "bold 10pt",
+      "keyword proposition"
+    ]
+  },
+  {
+    "node_id": "book.sub7.3.proof110",
+    "parent_id": "book.sub7.3",
+    "kind": "proof",
+    "label": "Proof",
+    "title": null,
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.3 Identification of a Subset to a Point"
+    ],
+    "page_pdf_start": 92,
+    "page_pdf_end": 92,
+    "page_printed_start": "73",
+    "page_printed_end": "73",
+    "text_normalized": "Proof. Since f is continuous, ¯f is also continuous by Proposition 7.1. Clearly, ¯f is a bijection. As the continuous image of the compact set I, the quotient I/∼is compact. Thus, ¯f is a continuous bijection from the compact space I/∼to the Hausdorff space S1. By Corollary A.36, ¯f is a homeomorphism. ⊓⊔",
+    "proves": "book.sub7.3.proposition109",
+    "math_region_ids": [
+      "track-a-r1-p92-eq4"
+    ],
+    "confidence": 0.95,
+    "evidence": [
+      "italic 10pt",
+      "keyword proof",
+      "attached to preceding proposition Proposition 7.3"
+    ]
+  },
+  {
+    "node_id": "book.sub7.5",
+    "parent_id": "book.sec7",
+    "kind": "subsection",
+    "label": "7.5",
+    "title": "Open Equivalence Relations",
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.5 Open Equivalence Relations"
+    ],
+    "page_pdf_start": 93,
+    "page_pdf_end": 94,
+    "page_printed_start": "74",
+    "page_printed_end": "75",
+    "text_normalized": "",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.93,
+    "evidence": [
+      "matched N.M pattern",
+      "bold 12pt",
+      "matched outline subsection-entry"
+    ]
+  },
+  {
+    "node_id": "book.sub7.5.definition115",
+    "parent_id": "book.sub7.5",
+    "kind": "definition",
+    "label": "Definition 7.5",
+    "title": null,
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.5 Open Equivalence Relations"
+    ],
+    "page_pdf_start": 93,
+    "page_pdf_end": 93,
+    "page_printed_start": "74",
+    "page_printed_end": "74",
+    "text_normalized": "Definition 7.5. An equivalence relation ∼on a topological space S is said to be open if the projection map π : S →S/∼is open. In other words, the equivalence relation ∼on S is open if and only if for every open set U in S, the set [ π−1(π(U)) = [x] x∈U of all points equivalent to some point of U is open.",
+    "proves": null,
+    "math_region_ids": [
+      "track-a-r1-p93-eq1",
+      "track-a-r1-p93-eq2",
+      "track-a-r1-p93-eq3"
+    ],
+    "confidence": 0.95,
+    "evidence": [
+      "bold 10pt",
+      "keyword definition"
+    ]
+  },
+  {
+    "node_id": "book.sub7.7.exercise133",
+    "parent_id": "book.sub7.7",
+    "kind": "exercise",
+    "label": "Exercise 7.1",
+    "title": "Image of the inverse image of a map",
+    "heading_path": [
+      "Chapter 2: Manifolds",
+      "§7 Quotients",
+      "7.7 The Standard C∞Atlas on a Real Projective Space"
+    ],
+    "page_pdf_start": 100,
+    "page_pdf_end": 100,
+    "page_printed_start": "81",
+    "page_printed_end": "81",
+    "text_normalized": "7.1. Image of the inverse image of a map Let f : X →Y be a map of sets, and let B ⊂Y. Prove that f(f −1(B)) = B ∩f(X). Therefore, if f is surjective, then f (f −1(B)) = B.",
+    "proves": null,
+    "math_region_ids": [],
+    "confidence": 0.9,
+    "evidence": [
+      "bold 9pt under Problems",
+      "matched N.M. exercise"
+    ]
+  }
+]
