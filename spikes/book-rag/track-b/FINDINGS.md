@@ -12,6 +12,112 @@ Slice: **Tu, Ch1 §1–§3 + Ch7 §7 "Quotients"**. Branch: `spike/graph-groundi
 
 ---
 
+# ROUND 3 — the graph as C's structural answer-path (§10–11 → §12–15)
+
+**R3 answer: the graph is now a first-class, intent-gated retrieval path with a
+bounded expansion helper C imports directly.** On A's **frozen 150-node corpus**
+reference resolution hit **96/96 = 100% with ZERO recall gaps** (all 6 R2 gaps
+closed by A). The helper recovers **100% of structural gold** (D-017/020/022) and
+**60–75% of graph-expansion gold** (D-023/026) — the remainder are genuine
+cross-subsection *semantic* dependencies no deterministic edge captures (quantifies
+the value of spec-§11 `depends_on`).
+
+## DID (R3)
+1. **Shipped `track-b/expand.py`** — a bounded, explainable expansion helper C
+   calls directly (signature below). Intent-gated + depth/confidence-capped (§14),
+   directly fixing R2's −0.067 recall regression from *global* neighbor injection.
+2. **Re-ran on A's frozen corpus** (A re-extracted 159→**150** nodes mid-round,
+   closing the 6 recall gaps + renumbering IDs). Edges live + current; pipeline is
+   idempotent so it picked up the freeze on re-run.
+3. **Re-resolved references** — **96/96 = 100%**, **0 recall gaps** (was 8).
+4. **Built `track-b/edge_gold_map.py`** — the exact edge→gold mapping for
+   D-017/020/022/023/026 (deliverable #4), resilient to A's ID churn (seeds + gold
+   resolved live by label/structural lookup, not hardcoded IDs).
+
+## THE HELPER C WIRES IN (signature)
+```python
+from expand import expand, Neighbor, INTENT_EDGE_SETS   # track-b/expand.py
+expand(seed_node_id: str,
+       edge_types: Iterable[str] | None = None,   # explicit filter, OR:
+       *, intent: str | None = None,              # INTENT_EDGE_SETS key (gates edges)
+       depth: int = 1, min_confidence: float = 0.5,
+       limit: int | None = None) -> list[Neighbor]
+# Neighbor(node_id, depth, via_edge, score, path)  — score = Π edge-conf along path;
+# path = [seed,...,node] is the EXPLANATION. Best-first; bounded; acyclic.
+```
+`INTENT_EDGE_SETS` (C maps `d_queries.intent` → key):
+`structural_neighbor`→{next,previous} d1 · `structural_contains`→{contains} d1 ·
+`proof`→{proven_by} d1 · `references`→{references,referenced_by} d2 ·
+`expansion`→{proven_by,next,previous,references,contains} d2. C resolves the seed
+(exact-label lexical hit) then calls `expand(seed, intent=...)`; returned node_ids
+feed C's candidate set / rerank. **Endpoints are `a_nodes.node_id`** (has_equation →
+`a_equations.eq_id`).
+
+## TABLES (row counts, R3 — frozen 150-node corpus)
+| table | rows |
+|---|---|
+| `b_node_edges` | **1076** (1002 structural + 74 reference) |
+| `b_references` | **96** |
+| `b_validation_issues` | **0** (recall gaps closed → no warnings) |
+
+Edge mix: has_equation 441, contains/parent_of 148, next/previous 120,
+references/referenced_by 37, proven_by 25.
+
+## QUALITY (R3)
+### Final reference accuracy on the FROZEN corpus
+- **96 / 96 = 100% on decidable refs; 0 in-slice recall gaps** (R2 had 8). The 3
+  remaining declines are correct out-of-slice (`Corollary A.36`, `Example 5.7`,
+  `Problem 19.12`). **A's freeze closed every gap** (e.g. `Exercise 7.11` →
+  `book.sub7.6.exercise130`, `Exercise 3.13` → `book.sub3.5.exercise62`).
+- **0 structural invariant violations** on the frozen corpus.
+
+### Helper recovery vs D's gold (bounded expansion)
+| query | intent | edges that back the gold | gold recall |
+|---|---|---|---|
+| **D-017** | structural_neighbor | **`next`** (Thm 7.7 → Cor 7.8) | **1/1 = 100%** |
+| **D-020** | structural_contains | **`contains`** (7.6 → Prop7.14/Cor7.15/Prop7.16) | **3/3 = 100%** |
+| **D-022** | structural_contains | **`contains`** (§3 → sub 3.1–3.10) | **5/5 = 100%** |
+| **D-023** | expansion | `next`+`references` (Cor7.10, Thm7.7) | 3/5 = 60% |
+| **D-026** | expansion | `proven_by`+`next` (Proof, Cor7.8) | 3/4 = 75% |
+
+### EDGE → GOLD mapping (what C targets, what D attributes)
+- **D-017** Cor 7.8 ← `next` from Theorem 7.7 (d1).
+- **D-020** Prop 7.14 / Cor 7.15 / Prop 7.16 ← `contains` from `book.sub7.6` (d1).
+  *NB: D's intent text says "under 7.7" but A parents these under `book.sub7.6` —
+  C must resolve the seed to A's actual subsection (7.6), not the literal "7.7".*
+- **D-022** sub 3.1–3.10 ← `contains` from `book.sec3` (d1).
+- **D-023** Cor 7.10 ← `next` (d1); Thm 7.7 ← `references` via the proof (d2).
+  **Prop 7.14 + Cor 7.15 NOT reached** — they live in 7.6 and connect to the
+  open-map result only by *mathematical dependency* (Cor 7.15 "applies the
+  open-relation second-countability result"); no `next`/`contains`/`references`
+  edge bridges 7.5→7.6. **Needs §11 `depends_on`.**
+- **D-026** Proof ← `proven_by` (d1); Cor 7.8 ← `next` (d1). **Prop 7.4 NOT
+  reached** — zero structural/reference edges touch it; pure semantic link.
+  **Needs §11 `depends_on`.**
+
+**Honest headline for the verdict:** deterministic structural edges fully answer
+*structural* queries (label/contains/neighbor/proof = 100%) but cap
+*graph-expansion* recall at 60–75% — the gap is exactly the **3 cross-subsection
+semantic dependencies** (§11 `depends_on`/`uses`, explicitly "optional later" in
+the spec). This is the precise, quantified cost of NOT building semantic edges.
+
+## What C should do with this (the R2 fix)
+Gate expansion by intent: only call `expand` for `structural_*` / `expansion` /
+`proof` / `references` intents, and feed neighbors as **boosted candidates**, not
+replacements. Do NOT expand on `direct`/`conceptual` intents (that injected the
+R2 global-neighbor noise). Bound at depth ≤2, min_confidence 0.5.
+
+## BLOCKERS / NEXT (R3)
+- **No blockers.** Corpus is FROZEN at 150 nodes; edges + refs + mapping are live
+  and consistent. Re-run `graph_build.py` only if A re-opens the freeze.
+- **NEXT (R4):** add a **conservative, evidence-backed `depends_on` edge** (§11)
+  to close the 3 expansion misses — derive from proof-cited results + shared
+  defining-construction terms, confidence-scored — and re-measure D-023/026.
+  Quantify the recall lift vs the noise risk so the control plane can decide if
+  semantic edges earn their place in #50.
+
+---
+
 # ROUND 2 — graph & grounding on the REAL corpus (Track A's `a_nodes`)
 
 **R2 answer: the graph + grounding hold up on machine-extracted nodes.** Swapped
