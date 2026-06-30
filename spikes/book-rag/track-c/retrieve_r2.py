@@ -107,6 +107,22 @@ def _minmax(d: dict[str, float]) -> dict[str, float]:
     return {k: (v - lo) / (hi - lo) for k, v in d.items()}
 
 
+# ---- query intent (R3): gate graph expansion to where it helps -------------
+STRUCTURAL_RE = re.compile(
+    r"\b(what comes (immediately )?(before|after)|right (before|after)|which (definitions|"
+    r"results|propositions|corollaries|theorems|lemmas|subsections)|list the subsections|"
+    r"occur in|are in subsection|in §|proof attached|attached to|depend on|build on|"
+    r"everything needed|material around|results that)\b", re.I)
+
+
+def is_structural_intent(query: str) -> bool:
+    """True for structural / graph-expansion queries (the ones that benefit from
+    walking B's edges). Direct/conceptual queries do NOT get graph expansion —
+    that was the R2 −0.067 regression: globally injecting neighbours displaced
+    relevant direct hits within k."""
+    return bool(STRUCTURAL_RE.search(query))
+
+
 class Retriever:
     """Holds ONE connection + an embedding cache for a whole eval run.
 
@@ -249,8 +265,8 @@ class Retriever:
     def hybrid(self, query: str, k: int = 10, pool: int = 30,
                w_vec=1.0, w_lex=1.0, w_type=0.6, w_label=2.0, w_graph=0.4,
                use_lexical=True, use_vector=True, use_type=True,
-               use_label=True, use_graph=False, rerank=False,
-               rerank_pool=20) -> list[Cand]:
+               use_label=True, use_graph=False, gate_graph=True,
+               coarse_to_fine=False, rerank=False, rerank_pool=12) -> list[Cand]:
         qv = self.embed(query) if use_vector else None
         lex = self.lexical(query, pool) if use_lexical else []
         vec = self.vector(query, pool, qv=qv) if use_vector else []
@@ -263,6 +279,8 @@ class Retriever:
 
         boosts = intent_boosts(query) if use_type else {}
         tgts = [t.lower() for t in label_targets(query)] if use_label else []
+        # coarse-to-fine (§12): boost leaves whose section was top-ranked among sections
+        cf_sections = self._coarse_sections(query, qv, k=3) if coarse_to_fine else set()
 
         scored: list[Cand] = []
         for cid, h in by_id.items():
@@ -270,20 +288,25 @@ class Retriever:
             vv = vec_n.get(cid, 0.0)
             tb = boosts.get(h.kind, 0.0) if (use_type and h.kind) else 0.0
             lb = 1.0 if (use_label and h.label and h.label.lower() in tgts) else 0.0
-            final = w_vec * vv + w_lex * lv + w_type * tb + w_label * lb
+            cf = 0.3 if (coarse_to_fine and self._parent_section(h) in cf_sections) else 0.0
+            final = w_vec * vv + w_lex * lv + w_type * tb + w_label * lb + cf
+            sig = {"vector_n": round(vv, 3), "lexical_n": round(lv, 3),
+                   "type_boost": tb, "label_boost": lb}
+            if cf:
+                sig["coarse_to_fine"] = cf
             scored.append(Cand(h.chunk_id, h.node_id, h.kind, h.label, h.heading_path,
-                               h.page, h.text, final,
-                               {"vector_n": round(vv, 3), "lexical_n": round(lv, 3),
-                                "type_boost": tb, "label_boost": lb}))
+                               h.page, h.text, final, sig))
         scored.sort(key=lambda x: x.score, reverse=True)
 
-        if use_graph:
+        # intent-gated graph expansion: only for structural/graph-expansion queries
+        do_expand = use_graph and (not gate_graph or is_structural_intent(query))
+        if do_expand:
             top_seeds = scored[:5]
             base = scored[0].score if scored else 1.0
             present = {c.chunk_id for c in scored}
             for nb in self.expand(top_seeds):
                 if nb.chunk_id not in present:
-                    nb.score = base * 0.5 + w_graph  # below seeds, above tail
+                    nb.score = base * 0.5 + w_graph  # strictly below seeds
                     nb.signals = {**nb.signals, "graph_injected": True}
                     scored.append(nb)
             scored.sort(key=lambda x: x.score, reverse=True)
@@ -291,6 +314,30 @@ class Retriever:
         if rerank:
             scored = self.rerank(query, scored[:rerank_pool]) + scored[rerank_pool:]
         return scored[:k]
+
+    # -- coarse-to-fine helpers (§12) --
+    @staticmethod
+    def _parent_section(h: "Cand") -> str | None:
+        """node_id of the enclosing section/subsection (A's scheme: leaf id is
+        book.subN.M.kindX -> parent book.subN.M; section nodes are their own)."""
+        nid = h.node_id or ""
+        if not nid.startswith("book.sub") and not nid.startswith("book.sec"):
+            return None
+        parts = nid.split(".")
+        # book.sub7.5.theorem117 -> book.sub7.5 ; book.sub7.5 -> itself
+        if len(parts) >= 4:
+            return ".".join(parts[:3])
+        return nid
+
+    def _coarse_sections(self, query: str, qv, k: int = 3) -> set[str]:
+        """Top-k section/subsection node_ids by vector+lexical, for coarse-to-fine."""
+        qv = qv if qv is not None else self.embed(query)
+        vrows = self._run(
+            f"""select node_id, 1-(embedding <=> %s) sim
+                from {SCHEMA}.c_chunks
+                where level='section' and embedding is not null
+                order by embedding <=> %s limit %s""", (qv, qv, k))
+        return {r[0] for r in vrows}
 
     # -- LLM rerank (Claude) --
     def rerank(self, query: str, cands: list[Cand]) -> list[Cand]:

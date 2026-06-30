@@ -48,11 +48,15 @@ def claude_rerank(query: str, cands: list) -> tuple[list[int], dict]:
     identity order on any parse failure (rerank must never drop candidates)."""
     if not cands:
         return [], {}
+    # LATENCY: short candidate snippets (180 chars) + a small output cap. The
+    # model only emits a short index array, so max_tokens=128 is plenty and cuts
+    # generation time; the smaller prompt cuts prefill. With a 12-candidate pool
+    # this brings the call well under the R2 ~3.7s/query.
     lines = []
     for i, c in enumerate(cands):
         kind = getattr(c, "kind", None) or "?"
         label = getattr(c, "label", None) or ""
-        text = " ".join((getattr(c, "text", "") or "").split())[:300]
+        text = " ".join((getattr(c, "text", "") or "").split())[:180]
         lines.append(f"[{i}] ({kind} {label}) {text}")
     user = f"Query: {query}\n\nCandidates:\n" + "\n".join(lines) + \
            "\n\nReturn the JSON array of candidate numbers, best first."
@@ -60,7 +64,7 @@ def claude_rerank(query: str, cands: list) -> tuple[list[int], dict]:
     try:
         client = _get_client()
         resp = client.messages.create(
-            model=MODEL, max_tokens=512,
+            model=MODEL, max_tokens=128,
             system=SYSTEM,
             messages=[{"role": "user", "content": user}],
         )

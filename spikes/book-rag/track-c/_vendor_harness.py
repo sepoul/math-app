@@ -64,7 +64,8 @@ def load_gold(path: Optional[pathlib.Path] = None) -> dict[str, list[GoldItem]]:
         out[qid] = [GoldItem(query_id=qid, gold_label=it.get("gold_label"),
                              gold_node_id=it.get("gold_node_id"),
                              relevance=int(it.get("relevance", 1)),
-                             rationale=it.get("rationale", "")) for it in items]
+                             rationale=it.get("rationale", ""),
+                             page_pdf=it.get("page_pdf")) for it in items]
     return out
 
 
@@ -98,11 +99,13 @@ def evaluate(
     *,
     k: int = 10,
     persist: bool = False,
+    match_mode: str = "auto",
     queries: Optional[dict[str, dict[str, str]]] = None,
     gold: Optional[dict[str, list[GoldItem]]] = None,
 ) -> tuple[RunReport, dict[str, list[RetrievedItem]], dict[str, float]]:
     """Run every query through `retrieve_fn`, time it, score it, optionally write
-    d_results + d_speed_cost. Returns (report, results_by_query, latency_ms_by_query)."""
+    d_results + d_speed_cost. Returns (report, results_by_query, latency_ms_by_query).
+    match_mode='page' scores label-less retrievers fairly (see metrics.score_run)."""
     queries = queries or load_queries()
     gold = gold or load_gold()
     catmap = category_map(queries)
@@ -118,7 +121,7 @@ def evaluate(
         raw_candidates[qid] = cands
         results_by_query[qid] = [_to_item(qid, i + 1, c) for i, c in enumerate(cands[:k])]
 
-    report = score_run(run_label, results_by_query, gold, catmap)
+    report = score_run(run_label, results_by_query, gold, catmap, match_mode=match_mode)
 
     if persist:
         _persist(run_label, raw_candidates, latency_ms, report)
