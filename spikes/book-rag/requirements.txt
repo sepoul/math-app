@@ -1,0 +1,16 @@
+# Shared LAB toolkit for the book-rag spike (means to an end — pin loosely).
+# Extraction
+pymupdf            # fitz — layout-aware native PDF extraction (primary)
+pdfplumber         # alternate layout inspection / cross-check
+pypdf              # outline + metadata
+# Matching / structure
+rapidfuzz          # fuzzy heading/reference matching
+# DB + vectors (Supabase Postgres + pgvector)
+psycopg[binary]
+pgvector           # numpy <-> vector adapter for psycopg
+numpy
+# Embeddings / LLM (keys come from ai-platform/.env)
+openai             # text-embedding-3-* (Track C default embedder)
+anthropic          # Claude — LLM reranker / eval-judge option
+# (Track C may add its own reranker dep, e.g. sentence-transformers, if it
+#  goes the cross-encoder route instead of an LLM scorer.)

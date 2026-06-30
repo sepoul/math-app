@@ -29,3 +29,6 @@ uv.lock
 
 # Claude Code worktrees (parallel background sessions check out here)
 .claude/worktrees/
+
+# Copyrighted textbook — NOT committed (public repo). Lives in the private book-rag-spike bucket.
+Tu_AnIntroductionToManifolds*.pdf
