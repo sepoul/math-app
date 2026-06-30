@@ -99,9 +99,13 @@ def main():
     gt_by_kind = collections.Counter(k for _, k, _ in gt)
 
     with connect() as c, c.cursor() as cur:
+        # scope to LABELED formal environments only — exclude structure and the
+        # R2 inline-definition nodes (those have no typographic label and are
+        # measured separately in FINDINGS, not against the labeled-env GT).
         cur.execute(
             "select kind, page_pdf_start, label from a_nodes "
-            "where run_id=%s and kind not in ('chapter','section','subsection');",
+            "where run_id=%s and kind not in ('chapter','section','subsection') "
+            "and node_id not like 'book.inlinedef.%%';",
             (RUN_ID,))
         rows = cur.fetchall()
     ex_by_kind = collections.Counter(k for k, _, _ in rows)

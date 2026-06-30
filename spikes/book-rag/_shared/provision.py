@@ -47,6 +47,13 @@ create table if not exists {SCHEMA}.a_equations (
   eq_id text primary key, run_id text, pdf_page int, bbox double precision[],
   raw_text text, latex text, latex_confidence double precision,
   image_crop_key text, parent_node_id text, block_id text);
+-- ADDED R2 (Track A): regrouped, ordered display-equation regions (raw
+-- fragments in a_equations are kept untouched); + aliases column on a_nodes.
+create table if not exists {SCHEMA}.a_eq_regions (
+  region_id text primary key, run_id text, pdf_page int, bbox double precision[],
+  member_eq_ids text[], ordered_text text, latex text, latex_confidence double precision,
+  image_crop_key text, parent_node_id text, n_fragments int);
+alter table {SCHEMA}.a_nodes add column if not exists aliases text[];
 
 -- Track B — graph, references, validation
 create table if not exists {SCHEMA}.b_node_edges (

@@ -214,3 +214,129 @@ confidence, with fragment-regrouping/LaTeX explicitly deferred to a later
 model/OCR pass — do **not** block the skeleton (or retrieval) on perfect math,
 and do **not** trust equation row counts as equation counts until regrouping
 exists.
+
+---
+
+# ROUND 2 — hardening the canonical corpus (#57)
+
+R1 left three gaps that B/C/D now depend on; all three are closed. Code:
+`track-a/harden.py` (regroup + vision + inline-defs + aliases + out-of-slice
+validation). The R1 labeled-environment scorecard is **unchanged: 113/113,
+100%/100%** (re-verified; `verify.py` now scopes to labeled envs, excluding the
+new inline defs).
+
+## Gap 1 — MATH REGROUPING + vision->LaTeX (R1's "one real break")
+
+**True equation count: 205 ordered regions, NOT 584.** Deterministic 2D bbox
+clustering (`regroup_equations`): fragments sorted by (y, x); a new region
+starts when the vertical gap exceeds 16pt; members ordered top-row then
+left-to-right (row tolerance 6pt). 584 raw fragments -> **205 display-equation
+regions** (avg 2.85 fragments/region) in **~1 s**, $0. Persisted to the new
+`a_eq_regions` table; raw `a_equations` fragments are **never overwritten**
+(`member_eq_ids` links each region back to its fragments + `ordered_text` joins
+them in reading order).
+
+**Vision->LaTeX accuracy (Claude `claude-opus-4-8`, one image call per region
+crop):** on a 10-region sample (the densest, hardest multi-fragment regions):
+
+| region (page) | frags | conf | recovered LaTeX (head) |
+|---|---|---|---|
+| p23 (Taylor) | 12 | 0.97 | `f(x) = f(p) + \sum_i \frac{\partial f}{\partial x^i}(p)(x^i ...` |
+| p100 (RP^n charts) | 14 | 0.97 | `y^1 = \frac{1}{x^1},\ y^2 = \frac{x^2}{x^1}, ...` |
+| p33 (vector field) | 9 | 0.95 | `X = \frac{-y}{\sqrt{x^2+y^2}} \frac{\partial}{\partial x} + ...` |
+| p49 (wedge) | 11 | 0.97 | `(\alpha^1 \wedge \cdots \wedge \alpha^k)(v_1, ...` |
+| p99 (RP^n chart map) | 9 | **0.85** | `[a^0,\ldots,a^n] \xrightarrow{\phi_0} ...` (hard multi-line map) |
+
+**9/10 at conf 0.95-0.97; 1/10 at 0.85** (the model's own faithfulness flag).
+**Mean latex_confidence ~0.95.** The reconstructions are genuinely faithful
+(sub/superscripts, fractions, sums/integrals, `\wedge`, `aligned` blocks). Stored
+as `latex` + `latex_confidence` on `a_eq_regions`, **raw evidence kept** (per spec
+§9 "never silently replace source evidence"). Region crops -> bucket
+`track-a/eqregion/*.png`. **Verdict: math IS recoverable** — deterministic
+regroup for the count/structure, one cheap vision call per region for LaTeX. The
+584 figure was a ~2.85x over-count; **205 is the number B/C/D should use.**
+
+## Gap 2 — INLINE DEFINITIONS (Track C found 0 `Definition N.M` labels)
+
+Tu defines most terms NOT with a labeled environment but by **italicizing the
+term in prose** (LaTeX `\emph`), after a definitional trigger ("is called", "are
+called", "is a/an", "we call", "defined as"...). `detect_inline_defs` finds the
+trigger + the Times-Italic-10 term, filters statement-glue stopwords,
+hyphenation breaks, and mid-phrase fragments. **16 definitional terms recovered**
+in the slice, parented to their subsection, emitted as `kind='definition'`
+(`book.inlinedef.N`, confidence 0.7): tangent vectors, equivalence, linear map,
+multicovectors, dual space V, covectors, k-tensor, exterior product, exterior
+algebra, quotient topology, quotient space, standard atlas, cycle of length r,
+identification, left action, superscripts. **~13/16 are clean math definienda;
+~3 are borderline** (e.g. "superscripts", "left action") — the trigger heuristic
+is high-recall / moderate-precision; a model pass could rank these. This gives
+"define X" queries a real target where the labeled-definition count (5) was
+near-empty. The slice now has **21 definition nodes (5 labeled + 16 inline)**.
+
+## Gap 3 — CONTRACTS for B/D
+
+**PROOF-NODE SCHEME (authoritative):**
+- **id pattern:** `<parent_node_id>.proof<seq>` where `seq` is a global node
+  index at creation, e.g. `book.sub1.2.proof8`. Proofs are **separate nodes**,
+  `kind='proof'`, `label="Proof"`.
+- **linkage:** the proof's `proves` field = the `node_id` of the immediately
+  preceding theorem-like item (theorem/proposition/lemma/corollary/definition).
+  25/25 proofs in the slice are linked.
+- **resolving "Proof of Theorem 7.7" -> a proof node:** resolve "Theorem 7.7" to
+  its node_id (via label/alias), then find the proof node whose `proves` equals
+  that node_id. Equivalently, the proof node carries the alias `"Proof of
+  Theorem 7.7"` directly (see below).
+
+**ALIASES (new `a_nodes.aliases text[]` column; 159 nodes populated):** every
+node carries the textual forms B's resolver and D's gold need to match:
+- numbered envs: `["Theorem 7.7", "7.7", "Thm 7.7"]`; exercises also get
+  `"Problem N.M"` (Tu's in-text name) + the exercise title — e.g.
+  `book...exercise138` (Exercise 7.6): `["Exercise 7.6","7.6","Problem 7.6",
+  "Quotient of R by 2πZ"]`.
+- proofs: `["Proof", "Proof of Lemma 1.4", "proof of 1.4"]` derived from the
+  proven node — e.g. `book.sub1.2.proof8`.
+- sections/definitions also carry their title as an alias.
+
+## Out-of-slice validation of the header / page-top rule (de-risks full book)
+
+The `y<HEADER_BAND_Y(35) AND size<9.5pt` two-part header rule, tested on 5
+**out-of-slice** pages (pdf 120/180/250/300/370, NOT indexed): **5/5 OK** — the
+first body line was correctly NOT eaten as header in every case, including a body
+`Theorem D.3` label opening pdf 370 at y=48.6/10pt, a chapter `§25` heading at
+y=69.8/14.3pt (pdf 300), and a `Problems` header at y=47/12pt (pdf 180). Printed
+page numbers extracted on all 5. The rule generalizes; the residual risk
+remains any page whose first body line creeps above y~35 (none seen).
+
+## Schema changes (ADDITIVE — B/C/D please note)
+
+Announced loudly: **two additive changes**, both in `_shared/schema.py` AND
+`_shared/provision.py` (idempotent DDL):
+1. **new table `a_eq_regions`** — regrouped ordered display-equation regions
+   (`region_id, pdf_page, bbox, member_eq_ids[], ordered_text, latex,
+   latex_confidence, image_crop_key, parent_node_id, n_fragments`). New pydantic
+   model `EqRegion`. Raw `a_equations` unchanged.
+2. **new column `a_nodes.aliases text[]`** — textual aliases (above). New
+   `Node.aliases` field. Existing fields/rows unchanged; no breaking change.
+
+## Tables written (run_id `track-a-r1`, after R2)
+
+| table | rows | note |
+|---|---|---|
+| a_nodes | 159 | 143 R1 + 16 inline defs; 159 with `aliases` |
+| a_equations | 584 | raw fragments, **unchanged** |
+| a_eq_regions | 205 | **new**; 10 with vision LaTeX + crop |
+| (a_pages / a_spans / a_blocks / a_toc_entries / a_parse_runs) | unchanged | |
+
+## R2 recommendation (1 paragraph)
+
+All three downstream gaps are closed deterministically + cheaply. **Equations:
+the real count is 205 regions (regroup is deterministic, ~1s/$0); LaTeX is
+recoverable at ~0.95 confidence via one Opus vision call per region** — for #50,
+regroup everything, then vision only the regions a query actually retrieves
+(lazy, cost-bounded). **Inline definitions are essential for Tu** (labeled
+definitions are rare; the real definitional surface is italic-in-prose) — ship
+the trigger+italic detector with a model re-rank to lift precision past the
+current ~80%. **Contracts:** B should resolve references via `aliases` (exact
++ `Problem N.M` + "Proof of …" forms) and the `proves` linkage; D's gold should
+key on the same aliases. The header/page-top rule generalizes off-slice, so
+scaling to 430 pages is low-risk on the structural side.

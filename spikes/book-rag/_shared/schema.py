@@ -89,6 +89,29 @@ class Node(BaseModel):
     math_region_ids: list[str] = Field(default_factory=list)
     confidence: Optional[float] = None
     evidence: list[Any] = Field(default_factory=list)
+    # ADDED R2 (Track A, #57): textual aliases for B's reference resolver + D's
+    # gold — e.g. a proof node carries ["Proof", "Proof of Theorem 7.7",
+    # "proof of 7.7"]; an exercise carries ["Exercise 7.1","7.1","Problem 7.1"].
+    aliases: list[str] = Field(default_factory=list)
+
+
+class EqRegion(BaseModel):
+    """ADDED R2 (Track A, #57). A regrouped, ORDERED display-equation region —
+    the deterministic clustering of several `Equation` fragments (which extract
+    out of order, one per glyph-run). `member_eq_ids` points back to the raw
+    `Equation` rows (never overwritten); `ordered_text` is the fragments joined
+    in reading order; `latex`/`latex_confidence` are filled by a vision pass.
+    Mirrors `book_rag_spike.a_eq_regions`."""
+    region_id: str
+    pdf_page: Optional[int] = None
+    bbox: Optional[list[float]] = None
+    member_eq_ids: list[str] = Field(default_factory=list)
+    ordered_text: str = ""
+    latex: Optional[str] = None
+    latex_confidence: Optional[float] = None
+    image_crop_key: Optional[str] = None
+    parent_node_id: Optional[str] = None
+    n_fragments: int = 0
 
 
 class Edge(BaseModel):
