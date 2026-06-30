@@ -190,7 +190,24 @@ choice, (2) a `page_pdf` gold-loader bug, (3) rerank config drift across rounds.
 **Not a contradiction — a bracket.** R4 must publish **one canonical table**
 (single config, one gold source, both strict + page-aware side by side).
 
-## Round 4 — Eval & verdict _(pending)_
+## Round 4 — Eval, efficiency & verdict (§16–17) — COMPLETE
+
+- **D** published the **one canonical bake-off** (C's locked `C_full`, frozen
+  corpus, one gold source, two honest columns) — see the verdict below; fixed
+  the `page_pdf` gold-loader; final §17 attribution + full-book ledger.
+- **C** locked `C_full` as an importable `retrieve_fn`, then **diagnosed the
+  strict-recall ceiling honestly: it's a gold node_id *drift* artifact, not a
+  retriever limit** — 11/37 gold IDs point at A's pre-renumber corpus, so strict
+  node_id under-counts even when the right *labeled* unit is retrieved (widening
+  the pool didn't help — the units are already there). Shipped section-demotion
+  + neighbour-promotion → MRR 0.88→0.93 at lower latency.
+- **B** ran the **`depends_on` semantic-edge experiment**: +5.6% expansion
+  recall (closes D-023 via an author-stated bridge), **0/11 false bridges**, and
+  correctly *declined* the 2 misses that would need speculative term-overlap
+  (the #53 false-bridge risk). Recommends: deterministic tier + `depends_on`
+  behind an expansion intent-gate; **no term-overlap edges.**
+- **A** delivered the scaling risk register and a plain **yes**: deterministic
+  extraction scales to 430pp (~6.5s, $0); vision→LaTeX stays lazy/bounded.
 
 ---
 
@@ -235,5 +252,93 @@ gets a partial answer: structural/reference edges resolve in-track connections
 fully, but **cross-subsection conceptual bridges need the semantic-edge tier**
 (B's R4 `depends_on` experiment sizes that cost).
 
-## Cross-cutting analysis _(persisted in `o_analysis`; 14 findings across R1–R3)_
-## Verdict: GO / NO-GO _(R4 — final)_
+## Cross-cutting analysis
+
+19 findings across R1–R4 are persisted in the orchestrator zone
+(`book_rag_spike.o_analysis`), with per-round worker reports in
+`o_worker_reports` (16 = 4×4) and 97 comparable metrics in `o_metrics`. The
+load-bearing ones are folded into the verdict below.
+
+---
+
+## Verdict: **GO**
+
+**Structured RAG retrieval is feasible, high-quality, and cheap on the real
+book (Tu) — it is the right foundation for the Mentor Loop (#50).** All four
+tracks independently land on GO.
+
+![Structured hybrid vs naive on Tu](assets/bakeoff.png)
+
+### The canonical number (C's locked `C_full`, frozen corpus `track-a-r1`, 26 queries)
+
+| metric | structured — **right unit** (strict) | structured — **right place** (page) | naive baseline |
+|---|---|---|---|
+| recall@5 | 0.61 ¹ | **0.85** | 0.72 |
+| recall@10 | 0.74 | 0.95 | 0.82 |
+| MRR | 0.71 | **0.91** | 0.54 |
+| exact-label-hit | **0.50** | 0.50 | **0.00** |
+| traceability | **0.99** | 0.99 | **0.00** |
+| latency (p50) | ~1.9 s with rerank · **~73 ms** hybrid-only | | 197 ms |
+
+¹ the strict figure is a **gold node_id drift artifact** (11/37 gold IDs predate
+A's corpus renumbering), not a retrieval limit — re-mapping gold to the frozen
+corpus lifts it toward the ~0.80 label figure. **The trustworthy headline is the
+page/label-aware column.**
+
+### Why GO (the three axes the spike tested)
+
+- **Feasibility ✓** — Tu's structure extracts deterministically and completely:
+  166 typed nodes, 120/120 environments (100%/100% in-slice), proof→theorem
+  links, **100% reference resolution**, 205 equation regions. No LLM in the hot
+  path. **Scales to 430pp at ~6.5 s / $0** (A validated the detector 5/5
+  out-of-slice).
+- **Quality ✓** — structure wins on every axis, *decisively* on the ones naive
+  **cannot do at all**: name the unit (label-hit 0.50 vs 0.00), ground to source
+  (traceability 0.99 vs 0.00), rank correctly (MRR 0.91 vs 0.54). Naive reaches
+  the right *page* ~72% of the time but can't say *what* it found or cite it —
+  the exact capability #55 needs. §17 attribution: **zero coverage/segmentation
+  misses — the residual 8 are all ranking** (rerank + graph edges), confirming
+  the spec thesis that segmentation matters more than embedding choice.
+- **Speed/cost ✓** — full-book index **~$0.012 one-time**; hybrid query **~73 ms
+  / ~$2e-7**; LLM rerank the one real cost (~$0.0015–0.023/q, ~1.9 s) — gate it
+  to ambiguous queries. **Comfortably inside a daily synthesis pass.**
+
+### What this means for #50 / #55 / #53
+
+- **#55 (book skeleton & grounding): directly validated.** Named, page-traceable
+  units returned in ~73 ms; coordinate-first grounding works; the skeleton is a
+  real, queryable graph.
+- **#53 (bridge canonicalization): partially answered, and the boundary is now
+  precise.** Deterministic + *author-stated* `depends_on` edges resolve in-track
+  and cross-reference connections safely (0 false bridges). But the **conceptual
+  bridges that need term-overlap / canonicalizing free-text `concepts` to one
+  object** — exactly #53's make-or-break — are deliberately *not* solved here
+  (false-bridge risk). **#53 warrants its own spike** (embeddings/clustering over
+  the `concepts` trail), now well-scoped by this one.
+- **Build recommendation for #50:** deterministic extraction + the typed graph as
+  the foundation; hybrid (lexical+vector+type/label) as the default retriever
+  (~73 ms, near-free); LLM rerank + `depends_on` expansion **gated by query
+  intent**; a §10 review queue keyed on A's five scaling risks; design the loop
+  for **k ≥ 5–10** and lean on the page-aware path.
+
+### Honest residual risks (all measured, none blocking)
+
+1. Exact-unit (strict) recall ceiling once gold drift is fixed (~0.80) — design
+   for k ≥ 5–10.
+2. Multi-hop / cross-subsection conceptual expansion is the weakest capability
+   (D-023 class) — `depends_on` helps; full coverage needs #53's semantic tier.
+3. Rerank latency (~1.9 s) is the one cost lever — gate it.
+4. Math fidelity rests on vision→LaTeX for symbol-heavy queries (lazy, ~0.95).
+5. **#53's concepts→canonical-object problem is out of this spike's scope** and
+   remains the open risk for the *bridge* half of the loop.
+
+### Run artifacts
+
+- **Branches (kept, not merged):** `spike/extraction-skeleton`,
+  `spike/graph-grounding`, `spike/hybrid-retrieval`, `spike/eval-efficiency`,
+  and this report on `spike/orchestration-report`.
+- **Data:** schema `book_rag_spike` (`a_*`/`b_*`/`c_*`/`d_*` worker zones +
+  `o_*` orchestrator zone), private bucket `book-rag-spike`.
+- **Method:** 4 persistent workers × 4 re-engaged rounds (themes walked the spec
+  §1–9 → §10–11 → §12–15 → §16–17), control plane analyzing + reconciling
+  between rounds.
