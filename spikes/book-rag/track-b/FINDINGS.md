@@ -12,6 +12,103 @@ Slice: **Tu, Ch1 §1–§3 + Ch7 §7 "Quotients"**. Branch: `spike/graph-groundi
 
 ---
 
+# ROUND 4 (FINAL) — the §11 semantic-edge experiment: `depends_on` lift vs noise
+
+**R4 answer / RECOMMENDATION: ship the deterministic tier for #50; add the
+`depends_on` semantic tier only behind a `dependencies`/`expansion` intent gate —
+it is a SMALL, SAFE, OPTIONAL win, not a foundation.** Evidence-backed
+`depends_on` edges lift graph-expansion recall **+5.6% (83.3%→88.9%, +1 true gold
+node)** with **0 false bridges** (every edge audited true), but the lift is narrow
+(1 of 3 misses) and the other 2 misses are unrecoverable without speculation.
+
+## DID (R4)
+1. **`track-b/semantic_edges.py`** — derives `depends_on` from **defensible
+   signals only**: (1) proof-cited results ("Apply Corollary 7.10" → dep on Cor
+   7.10, conf 0.9), (2) statement "by/using <Label>" (conf 0.8; **0 in this
+   slice** — Tu keeps dependency language in proofs). Emits BOTH directions
+   (`depends_on` / `depended_on_by`, like references/referenced_by). **No
+   term-overlap / topical bridges** (a false bridge is worse than a miss — #53).
+2. **`track-b/depends_on_experiment.py`** — A/B over all 5 gold queries:
+   deterministic-only vs +semantic, measuring LIFT and NOISE (distinct nodes).
+3. Wired `depends_on`/`depended_on_by` into the `expansion` intent + added a
+   `dependencies` intent and an `expansion_deterministic` control.
+
+## THE EXPERIMENT (lift vs noise, quantified)
+| query | seed | det-recall | +depends_on | lift | extra distinct nodes (gold / non-gold) |
+|---|---|---|---|---|---|
+| D-017 | Thm 7.7 | 1/1 100% | 1/1 100% | 0 | 4 (0 / 4) |
+| D-020 | sub7.6 | 3/3 100% | 3/3 100% | 0 | 0 |
+| D-022 | §3 | 5/5 100% | 5/5 100% | 0 | 0 |
+| **D-023** | Thm 7.9 | 3/5 60% | **4/5 80%** | **+1** | 1 (**1** / 0) |
+| D-026 | Thm 7.7 | 3/4 75% | 3/4 75% | 0 | 4 (0 / 4) |
+| **TOTAL** | | **15/18 83.3%** | **16/18 88.9%** | **+1 (+5.6%)** | 8 non-gold |
+
+### LIFT — the win
+**D-023 recovers Corollary 7.15** via `Thm 7.9 →next→ Cor 7.10 ←depended_on_by←
+Cor 7.15` (d2, score 0.855). This is exactly the bridge R3 lacked: Cor 7.15's
+proof says **"Apply Corollary 7.10"**, so the dependency is author-stated, not
+inferred.
+
+### NOISE — what it actually is (NOT false bridges)
+The "8 non-gold neighbors" reduce to **1 true semantic neighbor + its structural
+fan-out**: on a Theorem-7.7 seed, `depended_on_by` reaches **Prop 7.16** (whose
+proof literally cites Theorem 7.7 — a TRUE dependency), and depth-2 then pulls
+Prop 7.16's own `next`/`proven_by`/`previous` neighbors (Cor 7.15, 2 proofs).
+**False-bridge audit: 0 / 11 edges mismatched** — every `depends_on` is backed by
+a real cited label. So the cost is **precision against a deliberately tight gold**
+(D didn't list Prop 7.16 for D-026), not wrong edges, and it is **bounded** (one
+hop into one neighbor subsection).
+
+### The 2 misses depends_on can NOT fix (and shouldn't try)
+- **Prop 7.14** (D-023): its proof proves openness from first principles, citing
+  **no labeled result** → no evidence-backed edge exists.
+- **Prop 7.4** (D-026): no proof, cites nothing → no anchor.
+Both are connected to the cluster only by *conceptual* adjacency ("open
+equivalence relation"). Bridging them needs term-overlap inference = exactly the
+speculative edge that risks false positives. **We correctly leave them as misses.**
+
+## COST / BENEFIT CALL FOR #50 / #53
+| | deterministic tier | + `depends_on` tier |
+|---|---|---|
+| structural-query recall | 100% | 100% (unchanged) |
+| expansion-query recall | 83.3% | 88.9% (**+5.6%**) |
+| false bridges | 0 | **0** (all proof-cited, audited) |
+| precision cost | — | +1 true-but-not-gold neighbor on Thm-seeded expansion |
+| build cost | regex over proof text | same pass, +~0 ms, $0 |
+
+**Verdict:** the deterministic tier is the **right foundation** (it alone hits
+100% structural, 83% expansion, free, deterministic). `depends_on` is a **cheap,
+zero-false-bridge, optional enhancement** worth **only +5.6%** and only for
+`expansion`/`dependencies` intents. **Recommend: build deterministic for #50;
+include `depends_on` behind the intent gate (it never fires on structural/direct
+intents, so it can't regress them); do NOT pursue term-overlap semantic edges**
+— the remaining misses aren't worth the false-bridge risk (#53's exact warning).
+
+## FINAL GRAPH STATS (frozen 166-node corpus)
+| table | rows |
+|---|---|
+| `b_node_edges` | **1160** |
+| `b_references` | **96** (96/96 = 100% correct, **0 recall gaps**) |
+| `b_validation_issues` | **0** |
+
+Edges: has_equation 441, contains/parent_of 164 each, next/previous 135 each,
+references/referenced_by 37 each, proven_by 25, **depends_on 11 + depended_on_by
+11 (the §11 semantic tier)**. **0 dangling endpoints** across all 1160 edges.
+
+## FINAL RECOMMENDATION (Track B, whole spike)
+Structured retrieval over Tu's graph is **feasible, fast (~1 s), free (no LLM),
+and high-quality**: deterministic structure recovers 100% of structural gold and
+100% of in-slice references (after A's recall closure), with all §10 invariants
+clean and live. The graph is a **first-class, intent-gated answer-path** C can
+walk (bounded `expand()` helper). The §11 semantic tier earns a **conditional
+yes**: a safe +5.6% on expansion queries with zero false bridges, gated by intent.
+**Track B's slice of the go/no-go is GO** — the structure layer is the reliable
+part of this pipeline; the residual risk lives upstream (extraction recall, now
+closed for the slice) and in conceptual-dependency edges we deliberately don't
+build.
+
+---
+
 # ROUND 3 — the graph as C's structural answer-path (§10–11 → §12–15)
 
 **R3 answer: the graph is now a first-class, intent-gated retrieval path with a

@@ -68,8 +68,15 @@ INTENT_EDGE_SETS: dict[str, tuple[set[str], int]] = {
     "structural_contains": ({"contains"}, 1),
     "proof": ({"proven_by"}, 1),
     "references": ({"references", "referenced_by"}, 2),
-    # bounded "related material": the explicit, recoverable edges only (§14)
-    "expansion": ({"proven_by", "next", "previous", "references", "contains"}, 2),
+    # bounded "related material": deterministic edges + the §11 semantic tier
+    # (depends_on). depends_on is the R4 addition; it bridges cross-subsection
+    # mathematical dependencies that next/contains/references cannot reach.
+    "expansion": ({"proven_by", "next", "previous", "references", "contains",
+                   "depends_on", "depended_on_by"}, 2),
+    # deterministic-only expansion, for A/B comparison of the semantic tier
+    "expansion_deterministic": ({"proven_by", "next", "previous", "references",
+                                 "contains"}, 2),
+    "dependencies": ({"depends_on", "depended_on_by"}, 2),
 }
 
 # direction handling: some edge types are inherently symmetric to "walk" — we

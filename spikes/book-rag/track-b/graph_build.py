@@ -507,7 +507,10 @@ def detect_running_headers(slice_pages=SLICE_PAGES) -> dict[int, str]:
 
 def persist(edges, refs, issues):
     with connect() as c, c.cursor() as cur:
-        cur.execute("truncate b_node_edges, b_references, b_validation_issues;")
+        # rebuild the deterministic + reference tiers, but PRESERVE depends_on
+        # (the §11 semantic tier, owned by semantic_edges.py — additive pass).
+        cur.execute("delete from b_node_edges where edge_type not in ('depends_on','depended_on_by');")
+        cur.execute("truncate b_references, b_validation_issues;")
         for e in edges:
             cur.execute(
                 "insert into b_node_edges (from_node_id,to_node_id,edge_type,confidence,evidence) "
