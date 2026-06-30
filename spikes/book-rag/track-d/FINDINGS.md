@@ -11,6 +11,144 @@ the go/no-go?
 > published to `d_queries`/`d_gold` and mirrored to `../queries/{queries,gold}.json`.
 > C scores against them via `track-d/harness.py::evaluate(retrieve_fn, run_label)`.
 
+---
+
+# R2 — the stick turned into numbers (spec §16–§17)
+
+**Headline: structure-aware hybrid beats the naive baseline on every quality
+axis, and with A's extraction + C's indexing now complete, the residual failures
+are RANKING problems, not missing-content problems.** Detail below.
+
+## R2.1 — gold mapped to A's real node_ids
+
+A's canonical nodes are live (run `track-a-r1`, 143 nodes, `book.sec*/sub*.*`
+ids). `track-d/map_gold.py` resolved **65 / 66 gold labels → real `a_nodes.node_id`**
+(re-loaded into `d_gold`; 0 dangling refs). Resolution rules built from A's actual
+scheme: formal-env labels match verbatim; `subsection N.M …`→`book.subN.M`; proofs
+(A labels every proof `'Proof'`) resolve via the `proves` field — e.g.
+`"Proof of Theorem 7.7"`→`book.sub7.5.proof118`. **Page anchors + labels kept**, so
+C's label-less naive baseline still scores (page-overlap mode).
+
+- **The one unresolved gold (D-007 secondary, `Exercise 7.11`, rel=1):** Tu prints
+  this as an *inline starred exercise mid-§7.6*, and A merged it into surrounding
+  prose rather than minting a node — a real extraction gap, kept as page-anchored
+  gold so it still penalizes a miss. Flagged to A.
+- **Seam note (resolved during R2):** C re-indexed mid-round onto A's `book.*`
+  node_id namespace (was a private `c.tu.*` namespace earlier) and now indexes
+  subsections + definitions + proofs. **All 37 distinct gold node_ids are present
+  in C's `c_chunks`, all embedded** — so scoring now matches on EXACT node_id, not
+  just label.
+
+## R2.2 — head-to-head + ablation (refD reference retriever on the live corpus)
+
+> Track C had not written `d_results` when R2 ran, so to produce verdict numbers
+> NOW I built a **reference retriever** (`track-d/ref_retriever.py`) over C's live
+> `c_chunks`/`c_baseline_chunks` — lexical FTS + pgvector + type-boost fusion, and
+> a naive fixed-window-vector baseline. **This is a measurement instrument, not
+> C's deliverable**; when C's runs land, `score_runs.py --score-existing <label>`
+> scores them off `d_results` with the same metrics. All runs persisted to
+> `d_results` (+ `d_speed_cost`). Macro over 26 queries:
+
+| run_label | recall@1 | recall@5 | recall@10 | MRR | nDCG@5 | exact-label-hit | traceability |
+|---|---|---|---|---|---|---|---|
+| **refD_structured_hybrid** | 0.444 | **0.816** | 0.904 | **0.758** | **0.682** | **0.462** | **1.000** |
+| refD_naive_baseline | 0.187 | 0.718 | 0.822 | 0.540 | 0.482 | 0.000 | 0.000 |
+| refD_no_vector (lex+boost) | 0.244 | 0.295 | 0.333 | 0.314 | 0.281 | 0.231 | 1.000 |
+| refD_no_lexical (vec+boost) | 0.347 | 0.816 | 0.904 | 0.689 | 0.634 | 0.346 | 1.000 |
+| refD_no_type_boost (lex+vec) | 0.367 | 0.729 | 0.924 | 0.707 | 0.587 | 0.346 | 1.000 |
+
+**Structured-hybrid vs naive — the gap (where structure earns its keep):**
+- **MRR +0.218, nDCG@5 +0.200** — structure ranks the *right unit* higher, not
+  just "a chunk on the right page". recall@5 gap is smaller (+0.098) because the
+  naive baseline does get *near* the answer by page; it just can't rank or name it.
+- **exact-label-hit +0.462, traceability +1.000** — the decisive §17 capabilities.
+  The naive baseline scores **0.000** on both: its fixed-window chunks carry no
+  label and no `heading_path`, so it can neither answer "Theorem 7.7" by label nor
+  return a traceable path back to the source unit. Structure gives both for free.
+
+**Ablation — which signal carries the weight (Δ vs full hybrid):**
+- **vector dominates: −0.521 recall@5 / −0.401 nDCG@5 when removed.** On this slice
+  (single book, paraphrase-heavy conceptual queries), dense retrieval is the
+  workhorse for recall.
+- **lexical: ~0 recall@5 but it carries label/exact matching** — exact-label-hit
+  drops 0.462→0.346 and MRR 0.758→0.689 without it (it ranks the exactly-named
+  unit first). It's an ordering/precision signal here, not a recall signal.
+- **type-boost: −0.087 recall@5 / −0.095 nDCG@5** — a modest, real lift.
+
+> Caveat on the magnitude: the refD retriever uses a flat 0.5·vec+0.5·lex+boost
+> fusion with **no reranker and no graph-edge expansion**. C's `+rerank` and B's
+> edges should lift the ranking-bound failures below (and they're the next runs to
+> score). These numbers are a *floor* for structured-hybrid, and the structure-vs-
+> naive direction is already unambiguous.
+
+## R2.3 — §17 failure attribution (refD_structured_hybrid; primary gold not in top-3)
+
+**16 / 26 queries hit primary gold in top-3.** The 10 residual failures:
+
+| bucket | n | side | example |
+|---|---|---|---|
+| weak_vector | 4 | RETRIEVAL (C) | "tangent vectors as derivations", "gluing a square to a torus" |
+| metadata_rerank | 4 | RETRIEVAL (C) | "what comes after Theorem 7.7", "list subsections of §3" |
+| theorem_proof_boundary | 1 | UPSTREAM (A/B) | "proof attached to Proposition 7.3" |
+| graph_expansion | 1 | UPSTREAM (A/B) | "results that depend on the quotient construction" |
+
+**UPSTREAM (A/B structure/extraction/graph): 2 · RETRIEVAL (C ranking): 8.**
+
+Interpretation — and this is the load-bearing R2 finding: now that A's extraction
+and C's coverage are **complete** (all 37 gold nodes indexed), failures have moved
+OFF "the node is missing" and ONTO **ranking**:
+- The 4 `metadata_rerank` cases are *structural* queries where the right unit IS in
+  the top-10 but below rank 3 → exactly what a **reranker (C's `+rerank`) and
+  graph-edge boosts (B's `next`/`contains`/`proven_by`)** are for. The refD
+  retriever has neither, so this bucket should shrink when C/B's signals are scored.
+- The 4 `weak_vector` cases are conceptual/neighbor queries where flat embedding
+  similarity over-weighted the wrong section — a fusion-weight / rerank issue.
+- Only 2 are genuinely upstream: one proof-unit not surfaced, one graph-walk the
+  flat retriever can't do (needs B's edges).
+
+This **confirms the spec §17 thesis on Tu**: once segmentation/structure is right
+(it is — A nailed it), the remaining wins come from **ranking/fusion/graph**, not
+from swapping the embedding model. Re-run after C's `+rerank`/B-edges land to watch
+the 8 retrieval-side failures collapse.
+
+## R2.4 — speed / cost ledger (real numbers, in `d_speed_cost`)
+
+| stage | metric | value | note |
+|---|---|---|---|
+| query | latency p50 / p95 | **1.10 s / 1.17 s** | end-to-end per query (structured_hybrid) |
+| query | raw retrieval p50 / p95 (no embed API) | **87 ms / 184 ms** | FTS+pgvector only; remote Supabase RTT |
+| query | embed tokens / query | ~11 | the query string |
+| query | embed $ / query | **~$2e-7** | text-embedding-3-small @ $0.02/Mtok |
+| index | structured + baseline chunks | 141 + 40 | C's slice corpus |
+| index | embed tokens (one-time) | ~43,000 | whole-slice corpus |
+| index | embed $ (one-time) | **~$0.0009** | trivial |
+
+**The ~1 s/query latency is almost entirely the OpenAI embedding network round-trip**
+(raw DB retrieval is <0.2 s, and that's remote-Supabase RTT — a co-located DB is
+single-digit ms). Query-embedding is cacheable/batchable. **Verdict on efficiency:
+comfortably inside a daily-synthesis budget** — index build is a fraction of a cent,
+per-query cost is negligible, and the only latency lever is the embed call.
+*(A's extraction time + C's rerank token/$ are theirs to write into `d_speed_cost`
+under `extraction`/`query` stages; not yet present.)*
+
+## R2.5 — go / no-go signal (control plane finalizes in SYNTHESIS.md)
+
+On the evidence so far: **GO**, with the caveat that the win is in *structure +
+ranking*, not embeddings.
+- **Feasibility (A):** ✓ slice extracted to 143 typed nodes; all 37 gold nodes
+  located & indexed; printed-page mapping correct.
+- **Quality:** ✓ structured-hybrid beats naive on every axis; the two §17
+  signature capabilities (exact-label-hit, source-traceability) are **0 → strong**
+  purely from structure.
+- **Speed/cost:** ✓ ~$0.0009 one-time index, ~$2e-7/query, sub-200 ms DB retrieval.
+- **Where it breaks (risk register for #50):** (1) inline/un-numbered items A
+  merges into prose (the `Exercise 7.11` gap) — a coverage risk for "find this
+  specific item"; (2) structural/graph queries need a reranker + the real graph
+  edges to rank right (8 of 10 residual misses) — so **B's edges and a reranker are
+  load-bearing, not optional**; (3) proof-unit surfacing.
+
+---
+
 ## R1 deliverables (the stick is live)
 
 | deliverable | where | state |

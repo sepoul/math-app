@@ -45,6 +45,7 @@ class GoldItem:
     gold_node_id: Optional[str] = None   # real a_nodes.node_id once A lands
     relevance: int = 1                   # 2=primary, 1=relevant, 0=not
     rationale: str = ""
+    page_pdf: Optional[int] = None       # source page (for page-overlap matching)
 
     def key(self) -> str:
         """Match key: prefer node_id, fall back to label (round-1 reality)."""
@@ -83,10 +84,26 @@ def _norm(s: Optional[str]) -> str:
     return " ".join((s or "").lower().split())
 
 
-def _matches(item: RetrievedItem, gold: GoldItem) -> bool:
-    if item.retrieved_node_id and gold.gold_node_id:
-        return item.retrieved_node_id == gold.gold_node_id
-    return _norm(item.label) == _norm(gold.gold_label) and bool(_norm(item.label))
+def _matches(item: RetrievedItem, gold: GoldItem, match_mode: str = "auto") -> bool:
+    """match_mode:
+       'auto'  — node_id when both sides have it, else label, else page (fallback).
+       'strict'— node_id-or-label only (no page credit).
+       'page'  — credit when item.page == gold.page_pdf (for label-less baselines;
+                 gold leaf nodes are mostly single-page so page identity is a fair
+                 'same source unit' proxy).
+    """
+    if match_mode != "page":
+        if item.retrieved_node_id and gold.gold_node_id:
+            if item.retrieved_node_id == gold.gold_node_id:
+                return True
+        if _norm(item.label) and _norm(item.label) == _norm(gold.gold_label):
+            return True
+        if match_mode == "strict":
+            return False
+    # page fallback ('auto' last resort, or explicit 'page')
+    if item.page_pdf_start is not None and gold.page_pdf is not None:
+        return item.page_pdf_start == gold.page_pdf
+    return False
 
 
 def _ranked(items: Iterable[RetrievedItem]) -> list[RetrievedItem]:
@@ -96,37 +113,47 @@ def _ranked(items: Iterable[RetrievedItem]) -> list[RetrievedItem]:
 # --------------------------------------------------------------------------- #
 # Per-query metrics
 # --------------------------------------------------------------------------- #
-def recall_at_k(results: list[RetrievedItem], gold: list[GoldItem], k: int) -> float:
+def recall_at_k(results: list[RetrievedItem], gold: list[GoldItem], k: int,
+                match_mode: str = "auto") -> float:
     rel = [g for g in gold if g.relevance > 0]
     if not rel:
         return float("nan")
     topk = _ranked(results)[:k]
-    found = sum(1 for g in rel if any(_matches(r, g) for r in topk))
+    found = sum(1 for g in rel if any(_matches(r, g, match_mode) for r in topk))
     return found / len(rel)
 
 
-def reciprocal_rank(results: list[RetrievedItem], gold: list[GoldItem]) -> float:
+def reciprocal_rank(results: list[RetrievedItem], gold: list[GoldItem],
+                    match_mode: str = "auto") -> float:
     rel = [g for g in gold if g.relevance > 0]
     for r in _ranked(results):
-        if any(_matches(r, g) for g in rel):
+        if any(_matches(r, g, match_mode) for g in rel):
             return 1.0 / r.rank
     return 0.0
 
 
-def ndcg_at_k(results: list[RetrievedItem], gold: list[GoldItem], k: int) -> float:
+def ndcg_at_k(results: list[RetrievedItem], gold: list[GoldItem], k: int,
+              match_mode: str = "auto") -> float:
     rel = [g for g in gold if g.relevance > 0]
     if not rel:
         return float("nan")
 
-    def gain(item: RetrievedItem) -> int:
-        best = 0
-        for g in rel:
-            if _matches(item, g):
-                best = max(best, g.relevance)
-        return best
-
+    # Each gold item may be credited AT MOST ONCE, to its earliest-ranked match
+    # (otherwise page-overlap matching, where one chunk matches several gold and
+    # several chunks match one gold, can push DCG above iDCG -> nDCG > 1).
     topk = _ranked(results)[:k]
-    dcg = sum((2 ** gain(r) - 1) / math.log2(i + 2) for i, r in enumerate(topk))
+    claimed: set[int] = set()
+    dcg = 0.0
+    for i, r in enumerate(topk):
+        best_g, best_rel = None, 0
+        for gi, g in enumerate(rel):
+            if gi in claimed:
+                continue
+            if _matches(r, g, match_mode) and g.relevance > best_rel:
+                best_g, best_rel = gi, g.relevance
+        if best_g is not None:
+            claimed.add(best_g)
+            dcg += (2 ** best_rel - 1) / math.log2(i + 2)
     ideal = sorted((g.relevance for g in rel), reverse=True)[:k]
     idcg = sum((2 ** rel_g - 1) / math.log2(i + 2) for i, rel_g in enumerate(ideal))
     return dcg / idcg if idcg else 0.0
@@ -200,20 +227,23 @@ def score_run(
     gold_by_query: dict[str, list[GoldItem]],
     category_by_query: dict[str, str],
     ks: tuple[int, ...] = (1, 3, 5, 10),
+    match_mode: str = "auto",
 ) -> RunReport:
     """Score a full retrieval run. `results_by_query` maps query_id -> the
     retriever's ranked results; `gold_by_query` maps query_id -> gold items.
     Category drives the per-category breakdown and which metrics are headline
-    (exact_label_hit is meaningful for `direct`/`structural`)."""
+    (exact_label_hit is meaningful for `direct`/`structural`).
+    match_mode='page' fairly scores label-less retrievers (naive baseline) by
+    page-overlap against the gold page anchors."""
     per_query: list[QueryScore] = []
     for qid, gold in gold_by_query.items():
         res = results_by_query.get(qid, [])
         per_query.append(QueryScore(
             query_id=qid,
             category=category_by_query.get(qid, "?"),
-            recall_at={k: recall_at_k(res, gold, k) for k in ks},
-            mrr=reciprocal_rank(res, gold),
-            ndcg_at={k: ndcg_at_k(res, gold, k) for k in ks},
+            recall_at={k: recall_at_k(res, gold, k, match_mode) for k in ks},
+            mrr=reciprocal_rank(res, gold, match_mode),
+            ndcg_at={k: ndcg_at_k(res, gold, k, match_mode) for k in ks},
             exact_label_hit=exact_label_hit(res, gold),
             traceability_at_k=source_traceability(res, max(ks)),
             n_gold=len([g for g in gold if g.relevance > 0]),
