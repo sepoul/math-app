@@ -80,6 +80,13 @@ LABEL_RE = re.compile(
 # in-Problems exercise:  "1.1." / "1.2.* A C-infinity function ..."
 EXERCISE_RE = re.compile(r"^(?P<num>\d+\.\d+)\.(?P<star>\*)?\s+(?P<title>.+)$")
 
+# INLINE exercise (in the body, NOT under a Problems block): explicit keyword,
+# Times-Bold 9pt, e.g. "Exercise 3.13 (Symmetrizing operator).* Show that ...".
+# Tu interleaves these in the prose; the leading "Exercise" keyword + bold-9 is
+# the discriminator (the Problems-block items use the bare "N.M." form above).
+INLINE_EXERCISE_RE = re.compile(
+    r"^Exercise\s+(?P<num>\d+\.\d+)\*?(?:\s*\((?P<title>[^)]*)\))?")
+
 # figure caption to EXCLUDE from exercise/bold-9 detection
 FIGURE_RE = re.compile(r"^Fig(?:ure)?\.?\s", re.IGNORECASE)
 

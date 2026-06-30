@@ -276,6 +276,18 @@ def classify_heading(line: RawLine, in_problems: bool) -> Optional[Heading]:
 
 def classify_env(line: RawLine, in_problems: bool) -> Optional[EnvHit]:
     t = line.text.strip()
+    # ----- INLINE exercises (anywhere in the body): bold-9 "Exercise N.M ..." -
+    # Tu interleaves these in the prose, NOT under a Problems block, so this is
+    # not gated on in_problems. The explicit "Exercise" keyword + bold-9 makes
+    # it unambiguous (figures are excluded; figure lines never start "Exercise").
+    if line.bold and abs(line.size - cfg.EXERCISE_SIZE) < 0.6:
+        mi = cfg.INLINE_EXERCISE_RE.match(t)
+        if mi:
+            title = (mi.group("title") or "").strip()[:80]
+            return EnvHit(line.pdf_page, line.reading_order, "exercise",
+                          f"Exercise {mi.group('num')}", mi.group("num"),
+                          title or None, t, 0.9,
+                          ["bold 9pt", "inline Exercise keyword"])
     # ----- in-Problems exercises: bold-9 "N.M. title", exclude figures -----
     if (line.bold and abs(line.size - cfg.EXERCISE_SIZE) < 0.6
             and in_problems and not cfg.FIGURE_RE.match(t)):

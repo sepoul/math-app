@@ -63,8 +63,13 @@ def gt_labels(doc):
             def add(kind, num):
                 # numbered items dedup by (kind,num) so a page-break wrap counts
                 # once; UNNUMBERED items (proof / unnumbered example) are each
-                # distinct -> key by a per-(kind,page) running index.
-                if num:
+                # distinct -> key by a per-(kind,page) running index. EXERCISES
+                # are keyed by (kind,num,page): Tu reuses a number for two
+                # distinct exercises (e.g. Exercise 3.6 inline @p40 AND in the
+                # Problems block @p52), and an exercise label never wraps pages.
+                if kind == "exercise" and num:
+                    key = (kind, num, p)
+                elif num:
                     key = (kind, num)
                 else:
                     ctr[(kind, p)] += 1
@@ -85,11 +90,16 @@ def gt_labels(doc):
                         # proofs have no number -> key by page so each is distinct
                         add(kind, (m.group("num") if (m and m.group("num")) else None)
                             if kind != "proof" else None)
-            if (bold and abs(sz - cfg.EXERCISE_SIZE) < 0.6 and in_problems
-                    and not cfg.FIGURE_RE.match(txt)):
-                m = cfg.EXERCISE_RE.match(txt)
-                if m:
-                    add("exercise", m.group("num"))
+            if bold and abs(sz - cfg.EXERCISE_SIZE) < 0.6:
+                # inline "Exercise N.M ..." anywhere in the body
+                mi = cfg.INLINE_EXERCISE_RE.match(txt)
+                if mi:
+                    add("exercise", mi.group("num"))
+                # in-Problems bare "N.M. ..." (exclude figures)
+                elif in_problems and not cfg.FIGURE_RE.match(txt):
+                    m = cfg.EXERCISE_RE.match(txt)
+                    if m:
+                        add("exercise", m.group("num"))
     return out
 
 

@@ -340,3 +340,82 @@ current ~80%. **Contracts:** B should resolve references via `aliases` (exact
 + `Problem N.M` + "Proof of …" forms) and the `proves` linkage; D's gold should
 key on the same aliases. The header/page-top rule generalizes off-slice, so
 scaling to 430 pages is low-risk on the structural side.
+
+---
+
+# ROUND 3 — close recall gaps + FREEZE the corpus (#57)
+
+Lighter round: close the 6 verified recall gaps, freeze the corpus for C/D
+scoring, complete the speed/cost ledger. No further mid-round churn after this.
+
+## Gap closure — inline exercises (full recall)
+
+**Root cause:** R1/R2 only flagged bold-9 exercises *inside* the end-of-section
+`Problems` block (bare `N.M.` form). Tu ALSO interleaves exercises in the body
+prose with the explicit keyword form **`Exercise N.M (Title)`** (still Times-Bold
+9pt). Added `INLINE_EXERCISE_RE` + a non-`in_problems`-gated branch in
+`classify_env` (keyword `Exercise` + bold-9 is the discriminator).
+
+**Recovered the 6 B-verified gaps + 1 more I'd also missed:**
+`Exercise 3.13, 3.15, 3.17, 3.20, 3.22` (Ch1 §3, pdf 44–47), `Exercise 7.11`
+(§7, pdf 96), **and `Exercise 3.6 (Inversions)` (pdf 40)** — exercises **32 → 39**.
+
+**Numbering-collision finding (flag for B's resolver):** Tu reuses the number
+**3.6 for two distinct exercises** — inline `Exercise 3.6 (Inversions)` @pdf 40
+AND `3.6 Wedge product and scalars` in the §3 Problems block @pdf 52. Both are
+real, both extracted (distinct node_ids, shared `label="Exercise 3.6"`). B's
+reference resolver must disambiguate `Exercise 3.6` by page/context, not assume
+label-uniqueness. (`verify.py` GT now keys exercises by (kind, num, page) to
+count both.)
+
+**Fidelity scorecard — FULL RECALL, re-verified:**
+
+| element | truth | recovered | located |
+|---|---|---|---|
+| section / subsection | 4 / 24 | 4 / 24 | 4 / 24 |
+| definition (labeled) | 5 | 5 | 5 |
+| theorem / proposition / lemma / corollary | 3 / 13 / 6 / 8 | = | = |
+| proof | 25 | 25 | 25 (all linked) |
+| example / remark | 19 / 2 | = | = |
+| **exercise** | **39** | **39** | **39** |
+| **TOTAL (labeled envs)** | **120** | **120** | **120** |
+
+**recall 100% / precision 100%** on labeled formal environments.
+
+## FROZEN corpus (FINAL for R3 scoring)
+
+- **run_id: `track-a-r1`** (stable across all rounds — this is the canonical id).
+- **`a_nodes`: 166 total** — 2 chapter, 4 section, 24 subsection, 5 labeled
+  definition + 16 inline definition (=21 definition), 39 exercise, 25 proof, 19
+  example, 13 proposition, 8 corollary, 6 lemma, 3 theorem, 2 remark. **166/166
+  carry `aliases`.**
+- **`a_eq_regions`: 205** ordered display-equation regions (10 with vision LaTeX
+  @ conf 0.95–0.98); `a_equations`: 584 raw fragments (unchanged).
+- **Commitment: no further structural/content churn this round.** C and D can
+  score against `track-a-r1` as a stable foundation.
+
+## Speed / cost ledger (for D)
+
+Recorded authoritatively in **`a_parse_runs.notes`** (Track A's zone) AND mirrored
+into **`d_speed_cost`** (additive insert-only, `stage='extraction'`,
+`run_label='track-a-extraction'`, tagged `author=track-a`; D's 310 existing rows
+untouched, 310→312):
+
+| metric | value |
+|---|---|
+| slice extraction (45 pp), best-of-3 | **0.68 s** (15.1 ms/page) |
+| full-book projection (430 pp) | **~6.49 s** |
+| model calls / cost (deterministic extraction) | **0 / $0** |
+
+Vision→LaTeX is a **separate optional per-region pass** (one Opus image call per
+region, ~0.95 confidence) — priced per region, not part of the 6.49 s figure;
+run it lazily only on retrieved regions for #50.
+
+## R3 recommendation (1 paragraph)
+
+The structural substrate is **done and frozen**: full recall (120/120 labeled
+envs, 100%/100%), 166 typed nodes with aliases, 205 ordered equation regions,
+deterministic extraction at ~6.5 s / $0 for the whole book. The one residual the
+graph layer must handle is **label collisions** (Exercise 3.6 ×2) — resolve by
+page/context. C/D have a stable `track-a-r1` corpus + a complete speed ledger to
+produce the go/no-go verdict.
