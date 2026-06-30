@@ -167,6 +167,16 @@ REF_PATTERNS = [
     ("chapter", re.compile(r"\bChapter\s+(\d+)")),
 ]
 
+# the slice's leading numbering prefixes: Ch1 §1-§3 (1.x/2.x/3.x) + §7 (7.x).
+# A mention whose leading number isn't here (5.7, A.36, 19.12, §10, Chapter 4)
+# targets material OUTSIDE the slice -> correct to NOT resolve.
+SLICE_PREFIXES = {"1", "2", "3", "7"}
+
+
+def _in_slice(num: str) -> bool:
+    prefix = num.split(".")[0]
+    return prefix in SLICE_PREFIXES
+
 
 @dataclass
 class Ref:
@@ -180,21 +190,28 @@ class Ref:
 
 
 def _build_label_index(nodes: list[NodeRow]):
-    """Map normalized label/section/chapter -> node_id."""
-    env_idx: dict[str, str] = {}      # "theorem 7.7" -> node_id
-    prob_idx: dict[str, str] = {}     # "7.1" -> node_id (Problem)
+    """Map normalized label/section/chapter -> node_id.
+
+    R2: Tu's Problem/Exercise ALIAS SPLIT. The Problems block at a section's end
+    is cited in prose as "Problem N.M" but Track A labels those nodes
+    "Exercise N.M" (and Tu *lists* them as bare "N.M"). So we index exercises by
+    BARE NUMBER in a single `exer_idx`, and resolve BOTH "Exercise N.M" and
+    "Problem N.M" mentions through it. This is the one Tu-specific seam #57
+    flagged."""
+    env_idx: dict[str, str] = {}      # "theorem 7.7" -> node_id (numbered envs)
+    exer_idx: dict[str, str] = {}     # "7.1" -> node_id (exercise/problem, by bare num)
     sec_idx: dict[str, str] = {}      # "7" -> section node_id
     chap_idx: dict[str, str] = {}     # "1" -> chapter node_id
     for n in nodes:
         if not n.label:
             continue
         lab = n.label.strip()
-        if n.kind == "exercise" and lab.lower().startswith("problem"):
-            num = lab.split(None, 1)[1] if " " in lab else ""
-            prob_idx[num] = n.node_id
+        if n.kind == "exercise":
+            # accept "Exercise 7.1" / "Problem 7.1" / bare "7.1"
+            m = _LABEL_NUM.search(lab)
+            if m:
+                exer_idx[m.group(1)] = n.node_id
         elif n.kind in (THM_LIKE | {"definition", "example", "remark"}):
-            env_idx[lab.lower()] = n.node_id
-        elif n.kind == "exercise":  # "Exercise 7.11"
             env_idx[lab.lower()] = n.node_id
         elif n.kind == "section":
             m = re.search(r"(\d+)", lab)
@@ -204,11 +221,11 @@ def _build_label_index(nodes: list[NodeRow]):
             m = re.search(r"(\d+)", lab)
             if m:
                 chap_idx[m.group(1)] = n.node_id
-    return env_idx, prob_idx, sec_idx, chap_idx
+    return env_idx, exer_idx, sec_idx, chap_idx
 
 
 def resolve_references(nodes: list[NodeRow]) -> list[Ref]:
-    env_idx, prob_idx, sec_idx, chap_idx = _build_label_index(nodes)
+    env_idx, exer_idx, sec_idx, chap_idx = _build_label_index(nodes)
     refs: list[Ref] = []
     seen: set[tuple] = set()  # dedupe (src, raw) so one node citing X once counts once
     for n in nodes:
@@ -226,30 +243,44 @@ def resolve_references(nodes: list[NodeRow]) -> list[Ref]:
                 method = kind
                 if kind == "env":
                     env_kind, num = m.group(1), m.group(2)
-                    canon = f"{env_kind} {num}".lower()
                     resolved_label = f"{env_kind} {num}"
-                    if canon in env_idx:
-                        resolved_id = env_idx[canon]
-                        conf = 0.95
+                    # exercises route through the bare-number index (alias split)
+                    if env_kind == "Exercise":
+                        resolved_id = exer_idx.get(num)
                     else:
-                        # right grammar, target outside slice (e.g. Corollary A.36)
+                        resolved_id = env_idx.get(f"{env_kind} {num}".lower())
+                    if resolved_id:
+                        conf = 0.95
+                    elif _in_slice(num):
+                        # in-slice but no node -> EXTRACTION RECALL GAP (Track A)
+                        conf = 0.0
+                        method = "env_recall_gap"
+                    else:
+                        # right grammar, target genuinely outside the slice
                         conf = 0.3
                         method = "env_out_of_slice"
                 elif kind == "problem":
                     num = m.group(1)
                     resolved_label = f"Problem {num}"
-                    if num in prob_idx:
-                        resolved_id = prob_idx[num]
+                    resolved_id = exer_idx.get(num)  # Problem N.M -> Exercise N.M
+                    if resolved_id:
                         conf = 0.95
+                        method = "problem_alias"  # resolved via the alias
+                    elif _in_slice(num):
+                        conf = 0.0
+                        method = "problem_recall_gap"
                     else:
                         conf = 0.3
-                        method = "problem_unresolved"
+                        method = "problem_out_of_slice"
                 elif kind == "section":
                     num = m.group(1)
                     resolved_label = f"§{num}"
                     if num in sec_idx:
                         resolved_id = sec_idx[num]
                         conf = 0.9
+                    elif _in_slice(num):
+                        conf = 0.0
+                        method = "section_recall_gap"
                     else:
                         conf = 0.3
                         method = "section_out_of_slice"
@@ -268,20 +299,49 @@ def resolve_references(nodes: list[NodeRow]) -> list[Ref]:
 
 
 def self_judge(refs: list[Ref]) -> None:
-    """Self-judged `correct`: a ref is correct if it resolved to a node whose
-    label matches the mention's grammar, OR if it correctly declined to resolve
-    a target that is genuinely outside the slice (A.36, §-not-in-slice, etc.).
-    This is the eyeball pass — values were spot-checked against the PDF and the
-    seed; see FINDINGS for the audited sample."""
+    """Self-judged `correct`. A reference is correct if:
+      - it RESOLVED to a node whose number matches the mention, OR
+      - it correctly DECLINED an out-of-slice target (A.36, §10, Example 5.7).
+    A `*_recall_gap` is NOT counted correct: the target IS in the slice and
+    SHOULD have a node — the miss is Track A extraction recall, which we surface
+    as quality signal (see FINDINGS / report to A) rather than hide."""
     for r in refs:
         if r.resolved_node_id is not None:
-            # resolved: correct iff the resolved label matches the raw mention's number
             raw_num = _LABEL_NUM.search(r.raw_mention)
             lbl_num = _LABEL_NUM.search(r.resolved_label or "")
             r.correct = bool(raw_num and lbl_num and raw_num.group(1) == lbl_num.group(1))
+        elif r.method.endswith("recall_gap"):
+            r.correct = False  # honest: in-slice target with no node
         else:
-            # unresolved: correct iff it's a genuine out-of-slice target
-            r.correct = r.method.endswith("out_of_slice") or r.method.endswith("unresolved")
+            r.correct = r.method.endswith("out_of_slice")
+
+
+def reference_edges(refs: list[Ref]) -> list[dict]:
+    """R2 deliverable for Track C: promote RESOLVED references to real graph
+    edges so graph-expansion retrieval has something to walk.
+
+    For each resolved ref we emit a directed pair:
+        from=citing node  -> to=cited node    edge_type='references'
+        from=cited node   -> to=citing node   edge_type='referenced_by'
+    (no self-edges; dedup on (from,to,type)). Unresolved / recall-gap /
+    out-of-slice refs are NOT promoted — only confident, grounded links."""
+    edges: list[dict] = []
+    seen: set[tuple] = set()
+    for r in refs:
+        if not r.resolved_node_id or not r.correct:
+            continue
+        src, dst = r.src_node_id, r.resolved_node_id
+        if src == dst:
+            continue
+        for frm, to, et in ((src, dst, "references"), (dst, src, "referenced_by")):
+            k = (frm, to, et)
+            if k in seen:
+                continue
+            seen.add(k)
+            edges.append({"from_node_id": frm, "to_node_id": to, "edge_type": et,
+                          "confidence": r.confidence,
+                          "evidence": [f"in-text mention {r.raw_mention!r}"]})
+    return edges
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +361,12 @@ def run_invariants(nodes: list[NodeRow], running_headers: dict[int, str]) -> lis
     by_id = {n.node_id: n for n in nodes}
     issues: list[Issue] = []
 
-    # (a) section/subsection numbering monotone within a parent
+    # (a) section/subsection numbering monotone within a parent, IN READING
+    #     ORDER. The intent (§10): numbering should progress 4.1->4.2->4.3 as you
+    #     read down the pages. A true violation is when page reading-order and
+    #     numbering DISAGREE (e.g. 3.2 printed on a page before 3.1). We must sort
+    #     siblings by page first (DB insertion order is by node_id, where "3.10"
+    #     precedes "3.1" lexically -> false positive if compared unsorted).
     children: dict[str, list[NodeRow]] = {}
     for n in nodes:
         if n.parent_id:
@@ -313,10 +378,13 @@ def run_invariants(nodes: list[NodeRow], running_headers: dict[int, str]) -> lis
                 m = _LABEL_NUM.search(s.label)
                 if m:
                     numbered.append((tuple(int(x) for x in m.group(1).split(".")), s))
+        # sort by page reading order; numbering must be non-decreasing along it
+        numbered.sort(key=lambda t: (t[1].page_pdf_start or 0,))
         for (na, a), (nb, b) in zip(numbered, numbered[1:]):
-            if nb <= na:
+            if nb < na:
                 issues.append(Issue(b.node_id, "numbering_monotone", "warn",
-                    f"{b.label} ({nb}) not > {a.label} ({na}) under {pid}"))
+                    f"{b.label} ({nb}) printed before {a.label} ({na}) under {pid} "
+                    f"(reading order disagrees with numbering)"))
 
     # (b) a proof attaches to a preceding theorem-like node
     for n in nodes:
@@ -373,34 +441,38 @@ def run_invariants(nodes: list[NodeRow], running_headers: dict[int, str]) -> lis
     return issues
 
 
-def check_toc_coverage(nodes: list[NodeRow]) -> list[Issue]:
-    """(d) Each TOC section in the slice has an in-body heading node.
-    Uses the PDF outline restricted to the slice's §7 + Ch1 §1-§3."""
+def check_toc_coverage(nodes: list[NodeRow],
+                       slice_prefixes=("1", "2", "3", "7")) -> list[Issue]:
+    """(d) Each TOC section/subsection in the slice has an in-body heading node.
+    Derives expected labels from the PDF outline (§N -> bare N, and N.M), then
+    checks Track A produced a section/subsection node with that bare number."""
     import fitz
     from _shared.db import ensure_book
     doc = fitz.open(ensure_book())
     toc = doc.get_toc()
     issues: list[Issue] = []
-    # slice TOC labels we expect a heading node for (subsections of §7)
-    want = {"7.1", "7.2", "7.3", "7.4", "7.5", "7.6", "7.7", "§7"}
-    have_labels = {(n.label or "").replace("§", "").strip() for n in nodes}
-    have_labels |= {(n.label or "").strip() for n in nodes}
+    # in-body section/subsection labels A produced, normalised to bare number
+    have = {(n.label or "").replace("§", "").strip()
+            for n in nodes if n.kind in ("section", "subsection")}
     for lvl, title, page in toc:
         t = title.strip()
-        m = re.match(r"^(7\.\d+)\b", t)
-        sec = re.match(r"^§7\b", t)
-        key = m.group(1) if m else ("§7" if sec else None)
-        if key and key in want:
-            norm = key.replace("§", "")
-            if norm not in have_labels and key not in have_labels:
+        sec = re.match(r"^§(\d+)\b", t)          # "§7 Quotients"
+        sub = re.match(r"^(\d+\.\d+)\b", t)       # "7.1 The Quotient Topology"
+        key = sec.group(1) if sec else (sub.group(1) if sub else None)
+        if key and key.split(".")[0] in slice_prefixes:
+            if key not in have:
                 issues.append(Issue(None, "toc_section_missing_heading", "error",
                     f"TOC entry {t!r} (pdf {page}) has no in-body heading node"))
     return issues
 
 
-def detect_running_headers(slice_pages=range(90, 104)) -> dict[int, str]:
-    """Repeated top-margin lines across slice pages (the §7 running header /
-    subsection title that must NOT be mistaken for body headings)."""
+# the full R2 slice in PDF pages: Ch1 §1-§3 (22-52) + §7 Quotients (90-103)
+SLICE_PAGES = list(range(22, 53)) + list(range(90, 104))
+
+
+def detect_running_headers(slice_pages=SLICE_PAGES) -> dict[int, str]:
+    """Repeated top-margin lines across slice pages (running headers / section
+    titles that must NOT be mistaken for body headings)."""
     import fitz
     from _shared.db import ensure_book
     doc = fitz.open(ensure_book())
@@ -465,7 +537,7 @@ def report():
         cur.execute("select count(*) from b_node_edges;")
         print(f"  TOTAL edges: {cur.fetchone()[0]}")
 
-        print("\n--- b_references ---")
+        print("\n--- b_references by method ---")
         cur.execute("select method,count(*),sum((resolved_node_id is not null)::int),"
                     "sum((correct)::int) from b_references group by 1 order by 2 desc;")
         for method, tot, res, cor in cur.fetchall():
@@ -474,6 +546,14 @@ def report():
         tot, res, cor = cur.fetchone()
         print(f"  TOTAL refs={tot} resolved={res or 0} self-correct={cor or 0}  "
               f"acc={(cor or 0)/tot:.2%}" if tot else "  no refs")
+        # honest sub-metrics for D's §17 attribution
+        cur.execute("select sum((method like '%recall_gap')::int) from b_references;")
+        gaps = cur.fetchone()[0] or 0
+        cur.execute("select count(*) from b_references where method not like '%recall_gap';")
+        decidable = cur.fetchone()[0]
+        print(f"  resolver accuracy on DECIDABLE refs (excl. A recall gaps): "
+              f"{(cor or 0)}/{decidable} = {(cor or 0)/decidable:.2%}" if decidable else "")
+        print(f"  in-slice extraction RECALL GAPS (Track A signal): {gaps}")
 
         print("\n--- b_validation_issues by invariant/severity ---")
         cur.execute("select invariant,severity,count(*) from b_validation_issues group by 1,2 order by 1;")
@@ -496,16 +576,29 @@ def main():
     nodes, src = load_nodes()
     print(f"loaded {len(nodes)} nodes from {src}")
 
-    edges = build_edges(nodes)
+    struct_edges = build_edges(nodes)
     refs = resolve_references(nodes)
     self_judge(refs)
+    ref_edges = reference_edges(refs)        # references / referenced_by for C
+    edges = struct_edges + ref_edges
     running = detect_running_headers()
     issues = run_invariants(nodes, running)
     issues += check_toc_coverage(nodes)
+    # surface reference recall gaps as validation issues too (signal for D/§17):
+    # an in-slice target cited in prose but with no extracted node.
+    gap_targets: dict[str, list[str]] = {}
+    for r in refs:
+        if r.method.endswith("recall_gap"):
+            gap_targets.setdefault(r.resolved_label or r.raw_mention, []).append(r.src_node_id)
+    for tgt, citers in sorted(gap_targets.items()):
+        issues.append(Issue(None, "reference_recall_gap", "warn",
+            f"{tgt} cited by {len(citers)} node(s) but no extracted node "
+            f"(Track A recall gap); e.g. {citers[0]}"))
     dt = time.time() - t0
 
     persist(edges, refs, issues)
-    print(f"built {len(edges)} edges, {len(refs)} refs, {len(issues)} issues "
+    print(f"built {len(struct_edges)} structural + {len(ref_edges)} reference "
+          f"edges = {len(edges)} total, {len(refs)} refs, {len(issues)} issues "
           f"in {dt*1000:.0f} ms")
     report()
 
