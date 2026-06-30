@@ -419,3 +419,51 @@ deterministic extraction at ~6.5 s / $0 for the whole book. The one residual the
 graph layer must handle is **label collisions** (Exercise 3.6 ×2) — resolve by
 page/context. C/D have a stable `track-a-r1` corpus + a complete speed ledger to
 produce the go/no-go verdict.
+
+---
+
+# ROUND 4 — close-out: scaling risk register + the full-book verdict (#57)
+
+Final round. Corpus stays **FROZEN** (`track-a-r1`, 166 nodes) — not touched.
+This is the honest "what breaks at 430pp" doc for #50, each risk backed by
+in-slice evidence + a mitigation.
+
+## Does deterministic extraction scale to the whole book safely? **YES.**
+
+The structural extraction (hierarchy + formal environments + page mapping +
+equation *regions*) is **deterministic, ~6.5 s, $0** for all 430 pages
+(measured 0.68 s / 45 pp = 15.1 ms/page, recorded in `a_parse_runs.notes` +
+`d_speed_cost`). It does **zero** model calls and zero network. The only model
+cost is the **vision→LaTeX pass, which is optional and lazy** — one Opus image
+call per equation *region* (205 regions in the slice; ~0.95 confidence), run
+only on regions a query actually retrieves, not on the whole book. So: **safe to
+extract the full book deterministically; bound the model cost by running
+vision→LaTeX lazily on retrieved regions.** The residual risks below are real
+but are *accuracy* risks on a minority of items, not *feasibility* blockers —
+each lands in the §10 review queue with a confidence flag rather than corrupting
+the corpus.
+
+## Scaling risk register (for #50)
+
+| # | risk | evidence (in-slice) | mitigation |
+|---|---|---|---|
+| 1 | **Proof attachment** (top error source at scale) | 25/25 proofs attached, **all gap=0** (proof immediately follows its proven item on the same page) — zero needed the >2-page / no-antecedent fallback. But the rule is a heuristic ("attach to the immediately-preceding theorem-like node"); a proof separated by an intervening example, or a multi-claim proof, would mis-attach. | Keep the gap-based confidence (drop to ~0.6 + flag when no clean antecedent within N blocks); route flagged proofs to the §10 review queue; optionally a cheap model check on flagged cases only. Do NOT block extraction on it. |
+| 2 | **Inline-definition precision** (~80%) | 16 italic-trigger candidates in slice; **13/16 (81%) are genuine definienda**, confirmed by a 1-call Opus re-rank (side table `a_inlinedef_rerank`). The 3 it drops are exactly the eyeballed ones: "superscripts" (notational aside), "equivalence" (truncated — should be "equivalence relation"), "dual space V" (garbled glyph). | High-recall detector + a **one-shot model re-rank** (measured: 1 call, ~5 s, ~1.2K tokens) lifts kept-set precision to ~100%. Run the re-rank as a batch over all candidates once at index time — bounded cost, no per-query cost. Done as a side table this round (corpus frozen); for #50 it gates which inline defs become retrieval targets. |
+| 3 | **Display-math** | 584 raw fragments → **205 ordered regions** by deterministic 2D bbox clustering (safe, ~1 s, $0). Vision→LaTeX on the 10 densest regions: 9/10 @ 0.95–0.98, 1/10 @ 0.85. | Regrouping is deterministic and scales for free — use the 205-style region count, not the fragment count. **Vision→LaTeX is the ONLY model cost**: run it lazily per *retrieved* region (not the whole book); always keep raw evidence + crop so a low-confidence LaTeX never corrupts retrieval. |
+| 4 | **Heading / page-top detector generalization** | The two-part rule (`y<35 AND size<9.5pt`) validated on **5/5 out-of-slice pages** (pdf 120/180/250/300/370): a body `Theorem D.3` label opening a page at y=48.6, a `§25` chapter heading at y=69.8, a `Problems` header at y=47 — none wrongly eaten as header; printed page numbers extracted on all 5. | Rule generalizes. Residual: a page whose first body line creeps above y≈35 (none seen in 50 sampled pages). Mitigation: the size<9.5 guard already separates a 10pt body label from an 8–9pt running header even if the y-bands touch; flag pages where a >9.5pt line sits in the header band for review. |
+| 5 | **`Exercise 3.6` label-collision class** | Tu **reuses 3.6** for two distinct exercises: inline "Inversions" (pdf 40) + Problems "Wedge product and scalars" (pdf 52). Both extracted (distinct node_ids, shared `label`). Likely recurs book-wide (Tu's continuous per-section numbering + inline-vs-Problems split). | Node_ids are already unique, so storage is safe. **B's reference resolver must disambiguate `Exercise N.M` by page/context**, not assume label-uniqueness; D's gold should pin the intended occurrence by page. Aliases already carry page-independent labels — add page to the match key for exercises. |
+
+## Close-out summary
+
+- **Feasibility (Track A's lens): proven.** Tu's typed skeleton is deterministically
+  recoverable at **full recall** (120/120 labeled envs, 100%/100%), ~6.5 s / $0 for
+  the whole book, leaning on the 269-entry outline + clean separable typography.
+- **Where determinism ends:** math LaTeX (model, lazy/bounded), inline-def
+  precision (model re-rank, batch/bounded), and three accuracy heuristics
+  (proof attachment, page-top edge, label collisions) — all flag-and-review, none
+  a blocker.
+- **Recommendation for #50:** build the book skeleton on a per-book config
+  (`tu_config.py`-style) validated against the outline, with a §10 review queue
+  keyed on the five risks above; extract deterministically up front; spend model
+  budget only on (a) a one-time inline-def re-rank and (b) lazy per-retrieved-region
+  vision→LaTeX. Track A is **done**.
