@@ -13,6 +13,154 @@ the go/no-go?
 
 ---
 
+# R3 — reconciled to ONE agreed number + final efficiency picture
+
+**The reconcile is resolved, the bake-off has one agreed table, the §17
+miss-collapse is quantified, and the speed/cost ledger has a full-book
+projection. Standing read: GO.** All scored through one harness
+(`track-d/bakeoff.py`) under one explicit rule.
+
+## R3.0 — RECONCILE: the 0.816 vs 0.583 gap was matching strictness, not quality
+
+R2 cited refD recall@5 **0.816**; C cited its hybrid **0.583**. Scoring BOTH
+through Track D's harness pinned the cause exactly:
+- **0.816** = the page-overlap *fallback* applied to a structured retriever — too
+  generous (credits any chunk on the gold's page, not the right unit).
+- **0.583** = strict node_id/label match (the right *unit*) — what a structured-RAG
+  verdict should measure. Reproduced C's 0.583 to the digit (`hybrid_full` strict)
+  and its 0.656 (`+rerank` strict).
+
+**AGREED RULE (now applied identically to all runs):**
+- label-bearing retrievers (all structured + ablations) → **strict** (exact
+  `a_nodes` node_id OR exact label);
+- the label-less **naive baseline** → **page-overlap** (its only fair rule);
+- gold = all relevance ≥ 1 (graded); nDCG uses the grades.
+- **Label is the freeze-stable join key.** A's R3 freeze renumbered node_id
+  suffixes (`theorem117`→`theorem123`) while C's `d_results` kept the pre-freeze
+  ids; the matcher joins on label, so the score is invariant to the renumber
+  (verified: strict scores identical before/after the gold remap). Gold is
+  re-mapped to the frozen 159-node corpus (`map_gold.py`, now **66/66** — A added
+  the `Exercise 7.11` node, closing the R2 coverage gap).
+
+This is not "simplicity wins": under the one rule, **C's elaborate hybrid + rerank
+is the best config and beats the reference yardstick** (refD 0.554 strict). The
+rerank earns its keep.
+
+## R3.1 — THE ONE AGREED BAKE-OFF (cite the `+rerank` row)
+
+Structured = strict (node/label); baseline = page-overlap. Macro over 26 queries.
+
+| run_label | mode | recall@1 | recall@5 | recall@10 | MRR | nDCG@5 | exact-label | trace |
+|---|---|---|---|---|---|---|---|---|
+| **`+rerank`** ← **CITE** | strict | 0.346 | **0.656** | 0.742 | **0.738** | **0.639** | **0.577** | 1.000 |
+| `hybrid_full` | strict | 0.330 | 0.583 | 0.742 | 0.663 | 0.534 | 0.423 | 1.000 |
+| `+type_boost` | strict | 0.301 | 0.554 | 0.742 | 0.597 | 0.506 | 0.385 | 1.000 |
+| `refD_structured_hybrid` (yardstick) | strict | 0.340 | 0.554 | 0.726 | 0.637 | 0.539 | 0.462 | 1.000 |
+| `+graph_expansion` | strict | 0.330 | 0.517 | 0.650 | 0.645 | 0.489 | 0.423 | 1.000 |
+| `lex_vec` | strict | 0.263 | 0.526 | 0.716 | 0.578 | 0.471 | 0.308 | 1.000 |
+| `vector_only` | strict | 0.170 | 0.474 | 0.690 | 0.523 | 0.406 | 0.269 | 1.000 |
+| `naive_baseline` | page | 0.187 | 0.718 | 0.822 | 0.540 | 0.482 | 0.000 | 0.000 |
+
+**The verdict figure: C's `+rerank`, strict — recall@5 0.656, MRR 0.738, nDCG@5
+0.639, exact-label-hit 0.577, traceability 1.000.**
+
+**Structure vs naive, apples-to-apples (both page-overlap — the only rule the
+label-less baseline can be scored under):**
+
+| run | recall@5 | MRR | nDCG@5 | exact-label | trace |
+|---|---|---|---|---|---|
+| `+rerank` (page) | **0.869** | **0.897** | **0.784** | **0.577** | **1.000** |
+| `naive_baseline` (page) | 0.718 | 0.540 | 0.482 | 0.000 | 0.000 |
+
+Structure wins decisively even when the baseline gets the generous rule:
+**MRR +0.357, exact-label +0.577, traceability +1.000.** The naive baseline gets
+*near* the answer by page (recall@5 0.718) but cannot rank it, name it, or trace
+it — the §17 capabilities are 0.
+
+> Note: `naive_baseline` strict-row recall@5 (0.718, page) vs structured strict
+> (0.656) is NOT comparable — page-overlap is a looser match than exact
+> node/label. The honest comparison is the apples-to-apples page row above.
+
+## R3.2 — §17 MISS-COLLAPSE (the core go/no-go evidence)
+
+Reference (no rerank, no graph) → C's `+rerank`, on A's frozen corpus, agreed rule:
+
+| | misses | hits top-3 | breakdown |
+|---|---|---|---|
+| `refD_structured_hybrid` | 10 | 16 | weak_vector 4 · metadata_rerank 4 · proof_boundary 1 · graph_expansion 1 |
+| **`+rerank`** | **6** | **20** | weak_vector 5 · graph_expansion 1 |
+
+**Net −4 misses, 0 newly broken.** Fixed by rerank: **D-012** (conceptual),
+**D-019** (the proof-attachment query — proof_boundary→ok), **D-022 & D-026**
+(structural, metadata_rerank→ok). **The entire `metadata_rerank` bucket (4)
+collapsed** — reranking did exactly its job; UPSTREAM(A/B) failures dropped 2→1.
+Same −4 / 0-regression result measured vs C's own pre-rerank `hybrid_full`.
+
+Residual 6 misses: 5 `weak_vector` (the right unit not even in the candidate pool
+for some neighbor/conceptual queries — wants candidate-set widening or better
+embed-input context) + **D-023** `graph_expansion` (the hardest multi-hop
+dependency walk — needs deeper bounded expansion on B's edges). These are the
+named next levers, not blockers.
+
+## R3.3 — FINALIZED speed/cost ledger (real numbers in `d_speed_cost`)
+
+| stage | metric | slice value | source |
+|---|---|---|---|
+| extraction | wall seconds | **0.68 s** (slice) | A (`track-a-extraction`) |
+| index build | structured chunks | 141 | C / D |
+| index build | embed tokens / USD (one-time) | ~43,000 / **~$0.0009** | D-derived |
+| query | latency p50 — hybrid (no rerank) | **73 ms** | C (`hybrid_full`) |
+| query | latency p50 / p95 — **+rerank** | **3,855 ms / 5,682 ms** | C (`+rerank`) |
+| query | raw FTS+pgvector p50 (no embed) | 87 ms | D |
+| query | embed $ / query | **~$2e-7** | D |
+| query | rerank tokens / $ per query (est) | ~7,600 / **~$0.023** | D estimate (C didn't log actuals) |
+
+**Full-book (430 pp) projection** (`run_label='fullbook_projection'`, ~13.9× page
+scale; per-query cost is index-size-insensitive so it does NOT scale):
+
+| metric | value |
+|---|---|
+| extraction | **~6.5 s** (A's own projection) |
+| index build | ~1,955 chunks, ~600K embed tok, **~$0.012 one-time** |
+| per-query latency | hybrid ~73 ms · **+rerank ~3.9 s** |
+| per-query $ | embed ~$2e-7 · **rerank est ~$0.023** |
+
+**"Fits in a daily synthesis pass?" — YES, with one lever to watch.**
+- One-time index of the whole book: **~$0.012 and a few seconds.** Negligible.
+- A no-rerank hybrid query is **~73 ms and ~$2e-7** — run thousands per synthesis,
+  effectively free.
+- The **`+rerank` query is ~3.9 s and ~$0.023** — the LLM rerank call is the only
+  real cost line. For a *daily* pass issuing a handful of book lookups, ~$0.02–0.10
+  and a few seconds total is comfortably within budget. If a synthesis ever needs
+  hundreds of reranked lookups, gate rerank to the top-N ambiguous queries (rerank
+  buys +0.073 recall@5 / −4 misses; spend it where ordering is contested).
+
+## R3.4 — `page_pdf` promoted to a real `d_gold` column (C asked)
+
+`d_gold` now has real `page_pdf` + `page_printed` columns (additive
+`ADD COLUMN IF NOT EXISTS`), backfilled on all 66 rows; `load_db.py` writes them
+and `harness.load_gold_from_db()` reads them. Page-aware scoring is now clean off
+the table (no JSON side-channel).
+
+## R3.5 — STANDING GO / NO-GO read (control plane finalizes in SYNTHESIS.md)
+
+**GO.** On Tu's hard slice, with A's frozen extraction + C's `+rerank` hybrid:
+- **Feasibility (A):** ✓ 159 typed nodes; all 37 gold nodes located, indexed,
+  page-mapped; the one R2 extraction gap (`Exercise 7.11`) closed.
+- **Quality:** ✓ `+rerank` strict recall@5 0.656 / MRR 0.738 / exact-label 0.577 /
+  traceability 1.000; beats naive decisively on every ranking + §17 axis; rerank
+  collapses 4 of 10 misses with 0 regressions.
+- **Speed/cost:** ✓ ~$0.012 one-time full-book index; hybrid query free; rerank
+  ~$0.023/query — fits a daily pass; gate rerank if volume grows.
+- **Caveats / risk register for #50:** (1) **recall ceiling** — strict recall@5
+  is 0.66, not 0.9; 5 residual `weak_vector` misses want a wider candidate pool /
+  better contextual embed-input; (2) **multi-hop graph expansion** (D-023) is the
+  weakest capability — needs deeper bounded walks on B's edges; (3) **rerank
+  latency** (~3.9 s) is the one cost lever — keep it gated. None are blockers; all
+  are known, named, and measured.
+
+---
+
 # R2 — the stick turned into numbers (spec §16–§17)
 
 **Headline: structure-aware hybrid beats the naive baseline on every quality

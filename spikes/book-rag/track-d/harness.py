@@ -193,12 +193,12 @@ def load_gold_from_db() -> dict[str, list[GoldItem]]:
     from _shared.db import connect, SCHEMA  # noqa: E402
     out: dict[str, list[GoldItem]] = {}
     with connect() as conn, conn.cursor() as cur:
-        cur.execute(f"""select query_id, gold_node_id, gold_label, relevance, rationale
+        cur.execute(f"""select query_id, gold_node_id, gold_label, relevance, rationale, page_pdf
                         from {SCHEMA}.d_gold order by query_id;""")
-        for qid, nid, lbl, rel, rat in cur.fetchall():
+        for qid, nid, lbl, rel, rat, page in cur.fetchall():
             out.setdefault(qid, []).append(
                 GoldItem(query_id=qid, gold_node_id=nid, gold_label=lbl,
-                         relevance=rel or 1, rationale=rat or ""))
+                         relevance=rel or 1, rationale=rat or "", page_pdf=page))
     return out
 
 

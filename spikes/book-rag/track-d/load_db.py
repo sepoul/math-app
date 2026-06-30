@@ -35,14 +35,20 @@ def main() -> None:
                 (q["query_id"], q["category"], q["query_text"], q.get("intent"),
                  json.dumps(q.get("notes", {}))))
         n_gold = 0
+        # page_pdf / page_printed are real d_gold columns (promoted R3) for clean
+        # page-aware scoring; additive, so older rows/loaders still work.
+        cur.execute(f"alter table {SCHEMA}.d_gold add column if not exists page_pdf int;")
+        cur.execute(f"alter table {SCHEMA}.d_gold add column if not exists page_printed text;")
         for qid, items in gold.items():
             for it in items:
                 cur.execute(
                     f"""insert into {SCHEMA}.d_gold
-                        (query_id, gold_node_id, gold_label, relevance, rationale)
-                        values (%s,%s,%s,%s,%s)""",
+                        (query_id, gold_node_id, gold_label, relevance, rationale,
+                         page_pdf, page_printed)
+                        values (%s,%s,%s,%s,%s,%s,%s)""",
                     (qid, it.get("gold_node_id"), it.get("gold_label"),
-                     int(it.get("relevance", 1)), it.get("rationale")))
+                     int(it.get("relevance", 1)), it.get("rationale"),
+                     it.get("page_pdf"), it.get("page_printed")))
                 n_gold += 1
         conn.commit()
 

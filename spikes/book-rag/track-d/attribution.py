@@ -119,11 +119,16 @@ def classify(qid, category, gold, results, facts):
     nid = miss.gold_node_id
     retrieved10 = in_top(miss, ids10, labels10)
 
-    # 1. node never extracted by A (no node_id, label absent from a_nodes)
-    if nid is None and lbl not in a_by_label and not lbl.startswith(("subsection", "section")):
+    # coverage uses node_id OR label (label is freeze-stable; A's R3 freeze
+    # renumbered node_id suffixes while C's index kept the pre-freeze ids).
+    in_c = (nid in c_node_ids) or (_norm(lbl) in {_norm(x) for x in c_labels})
+    in_a = (lbl in a_by_label) or lbl.startswith(("subsection", "section"))
+
+    # 1. node never extracted by A
+    if nid is None and not in_a:
         return ("miss", "extraction_coverage")
     # 2. node extracted by A but NOT indexed by C -> indexing/chunking gap
-    if nid and nid not in c_node_ids:
+    if not in_c:
         return ("miss", "chunking_coverage")
     # 3. proof boundary: gold is a proof node, retrieval didn't surface it
     if nid and a_kind.get(nid) == "proof" and not retrieved10:
@@ -138,42 +143,75 @@ def classify(qid, category, gold, results, facts):
     return ("miss", "weak_lexical" if category == "direct" else "weak_vector")
 
 
-def main():
+UPSTREAM = {"extraction_coverage", "chunking_coverage", "theorem_proof_boundary",
+            "heading_segmentation", "graph_expansion"}
+
+
+def attribute(run_label):
     queries = load_queries(); gold = load_gold(); facts = _live_facts()
-    results = _load_results(HEADLINE)
+    results = _load_results(run_label)
     if not results:
-        print(f"NO d_results for {HEADLINE} yet — run score_runs.py first.")
-        return
+        return None, None, None
     hist = collections.Counter()
     rows = []
+    misses = set()
     for qid, q in queries.items():
         status, bucket = classify(qid, q["category"], gold[qid], results.get(qid, []), facts)
         if status == "ok":
             hist["ok"] += 1
             continue
         hist[bucket] += 1
+        misses.add(qid)
         rows.append((qid, q["category"], status, bucket, q["query_text"][:42]))
+    return hist, rows, misses
 
-    print(f"=== §17 FAILURE ATTRIBUTION — {HEADLINE} (primary gold not in top-3) ===\n")
+
+def _print(run_label, hist, rows):
+    print(f"=== §17 FAILURE ATTRIBUTION — {run_label} (primary gold not in top-3) ===\n")
     print(f"{'query':<7}{'category':<16}{'status':<9}{'bucket':<24}query")
     for qid, cat, st, bk, txt in sorted(rows, key=lambda r: r[3]):
         print(f"{qid:<7}{cat:<16}{st:<9}{bk:<24}{txt}")
-    nq = len(queries)
-    print(f"\n=== HISTOGRAM (n={nq} queries; ok={hist['ok']}) ===")
-    UPSTREAM = {"extraction_coverage", "chunking_coverage", "theorem_proof_boundary",
-                "heading_segmentation", "graph_expansion"}
     up = sum(v for k, v in hist.items() if k in UPSTREAM)
     rt = sum(v for k, v in hist.items() if k not in UPSTREAM and k != "ok")
+    print(f"\n=== HISTOGRAM (ok={hist['ok']}) ===")
     for bucket, n in hist.most_common():
         if bucket == "ok":
             continue
         tag = "UPSTREAM(A/B)" if bucket in UPSTREAM else "RETRIEVAL(C)"
         print(f"  {bucket:<24} {n:>3}   [{tag}]")
-    print(f"\n  UPSTREAM (A/B structure/extraction/graph): {up}")
-    print(f"  RETRIEVAL (C lexical/vector/metadata/rerank): {rt}")
-    print(f"  hits in top-3: {hist['ok']}")
-    return hist, rows
+    print(f"\n  UPSTREAM (A/B): {up}  ·  RETRIEVAL (C): {rt}  ·  hits in top-3: {hist['ok']}")
+
+
+def main(run_label=HEADLINE):
+    hist, rows, misses = attribute(run_label)
+    if hist is None:
+        print(f"NO d_results for {run_label}.")
+        return
+    _print(run_label, hist, rows)
+    return hist, rows, misses
+
+
+def collapse(base="refD_structured_hybrid", improved="+rerank"):
+    """How many of `base`'s misses are FIXED by `improved` (the go/no-go signal)."""
+    hb, _, mb = attribute(base)
+    hi, _, mi = attribute(improved)
+    if hb is None or hi is None:
+        print("missing runs for collapse comparison"); return
+    fixed = mb - mi
+    newly = mi - mb
+    print(f"\n=== MISS-COLLAPSE: {base} -> {improved} ===")
+    print(f"  {base}: {len(mb)} misses (ok={hb['ok']})")
+    print(f"  {improved}: {len(mi)} misses (ok={hi['ok']})")
+    print(f"  FIXED by {improved}: {len(fixed)}  {sorted(fixed)}")
+    print(f"  newly broken: {len(newly)}  {sorted(newly)}")
+    print(f"  net miss reduction: {len(mb) - len(mi)}")
 
 
 if __name__ == "__main__":
-    main()
+    import sys as _s
+    if len(_s.argv) > 1 and _s.argv[1] == "--collapse":
+        base = _s.argv[2] if len(_s.argv) > 2 else "refD_structured_hybrid"
+        imp = _s.argv[3] if len(_s.argv) > 3 else "+rerank"
+        main(base); print(); main(imp); collapse(base, imp)
+    else:
+        main(_s.argv[1] if len(_s.argv) > 1 else HEADLINE)

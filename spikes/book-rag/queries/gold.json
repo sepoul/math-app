@@ -13,7 +13,7 @@
     "D-001": [
       {
         "gold_label": "Theorem 7.7",
-        "gold_node_id": "book.sub7.5.theorem117",
+        "gold_node_id": "book.sub7.5.theorem123",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -31,7 +31,7 @@
       },
       {
         "gold_label": "Proposition 7.1",
-        "gold_node_id": "book.sub7.2.proposition105",
+        "gold_node_id": "book.sub7.2.proposition111",
         "relevance": 1,
         "page_pdf": 91,
         "page_printed": "72",
@@ -41,7 +41,7 @@
     "D-003": [
       {
         "gold_label": "Proposition 7.1",
-        "gold_node_id": "book.sub7.2.proposition105",
+        "gold_node_id": "book.sub7.2.proposition111",
         "relevance": 2,
         "page_pdf": 91,
         "page_printed": "72",
@@ -51,7 +51,7 @@
     "D-004": [
       {
         "gold_label": "Corollary 7.8",
-        "gold_node_id": "book.sub7.5.corollary119",
+        "gold_node_id": "book.sub7.5.corollary125",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -79,7 +79,7 @@
     "D-006": [
       {
         "gold_label": "Proposition 3.8",
-        "gold_node_id": "book.sub3.2.proposition48",
+        "gold_node_id": "book.sub3.2.proposition49",
         "relevance": 2,
         "page_pdf": 41,
         "page_printed": "22",
@@ -97,7 +97,7 @@
       },
       {
         "gold_label": "Exercise 7.11",
-        "gold_node_id": null,
+        "gold_node_id": "book.sub7.6.exercise130",
         "relevance": 1,
         "page_pdf": 96,
         "page_printed": "77",
@@ -125,7 +125,7 @@
       },
       {
         "gold_label": "Proposition 7.1",
-        "gold_node_id": "book.sub7.2.proposition105",
+        "gold_node_id": "book.sub7.2.proposition111",
         "relevance": 2,
         "page_pdf": 91,
         "page_printed": "72",
@@ -169,7 +169,7 @@
     "D-011": [
       {
         "gold_label": "Theorem 7.7",
-        "gold_node_id": "book.sub7.5.theorem117",
+        "gold_node_id": "book.sub7.5.theorem123",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -177,7 +177,7 @@
       },
       {
         "gold_label": "Proposition 7.4",
-        "gold_node_id": "book.sub7.4.proposition112",
+        "gold_node_id": "book.sub7.4.proposition118",
         "relevance": 2,
         "page_pdf": 92,
         "page_printed": "73",
@@ -185,7 +185,7 @@
       },
       {
         "gold_label": "Corollary 7.8",
-        "gold_node_id": "book.sub7.5.corollary119",
+        "gold_node_id": "book.sub7.5.corollary125",
         "relevance": 1,
         "page_pdf": 94,
         "page_printed": "75",
@@ -229,7 +229,7 @@
     "D-013": [
       {
         "gold_label": "Proposition 3.21",
-        "gold_node_id": "book.sub3.8.proposition69",
+        "gold_node_id": "book.sub3.8.proposition74",
         "relevance": 2,
         "page_pdf": 46,
         "page_printed": "27",
@@ -237,7 +237,7 @@
       },
       {
         "gold_label": "Corollary 3.23",
-        "gold_node_id": "book.sub3.8.corollary71",
+        "gold_node_id": "book.sub3.8.corollary77",
         "relevance": 1,
         "page_pdf": 47,
         "page_printed": "28",
@@ -255,7 +255,7 @@
     "D-014": [
       {
         "gold_label": "Theorem 7.9",
-        "gold_node_id": "book.sub7.5.theorem120",
+        "gold_node_id": "book.sub7.5.theorem126",
         "relevance": 2,
         "page_pdf": 95,
         "page_printed": "76",
@@ -263,7 +263,7 @@
       },
       {
         "gold_label": "Corollary 7.10",
-        "gold_node_id": "book.sub7.5.corollary122",
+        "gold_node_id": "book.sub7.5.corollary128",
         "relevance": 2,
         "page_pdf": 95,
         "page_printed": "76",
@@ -289,7 +289,7 @@
       },
       {
         "gold_label": "Example 7.2",
-        "gold_node_id": "book.sub7.3.example108",
+        "gold_node_id": "book.sub7.3.example114",
         "relevance": 1,
         "page_pdf": 92,
         "page_printed": "73",
@@ -307,7 +307,7 @@
       },
       {
         "gold_label": "Proposition 7.4",
-        "gold_node_id": "book.sub7.4.proposition112",
+        "gold_node_id": "book.sub7.4.proposition118",
         "relevance": 1,
         "page_pdf": 92,
         "page_printed": "73",
@@ -317,7 +317,7 @@
     "D-017": [
       {
         "gold_label": "Corollary 7.8",
-        "gold_node_id": "book.sub7.5.corollary119",
+        "gold_node_id": "book.sub7.5.corollary125",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -327,7 +327,7 @@
     "D-018": [
       {
         "gold_label": "Example 7.6",
-        "gold_node_id": "book.sub7.5.example116",
+        "gold_node_id": "book.sub7.5.example122",
         "relevance": 2,
         "page_pdf": 93,
         "page_printed": "74",
@@ -335,7 +335,7 @@
       },
       {
         "gold_label": "Theorem 7.7",
-        "gold_node_id": "book.sub7.5.theorem117",
+        "gold_node_id": "book.sub7.5.theorem123",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -343,7 +343,7 @@
       },
       {
         "gold_label": "Corollary 7.8",
-        "gold_node_id": "book.sub7.5.corollary119",
+        "gold_node_id": "book.sub7.5.corollary125",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -351,7 +351,7 @@
       },
       {
         "gold_label": "Theorem 7.9",
-        "gold_node_id": "book.sub7.5.theorem120",
+        "gold_node_id": "book.sub7.5.theorem126",
         "relevance": 2,
         "page_pdf": 95,
         "page_printed": "76",
@@ -359,7 +359,7 @@
       },
       {
         "gold_label": "Corollary 7.10",
-        "gold_node_id": "book.sub7.5.corollary122",
+        "gold_node_id": "book.sub7.5.corollary128",
         "relevance": 2,
         "page_pdf": 95,
         "page_printed": "76",
@@ -369,7 +369,7 @@
     "D-019": [
       {
         "gold_label": "Proof of Proposition 7.3",
-        "gold_node_id": "book.sub7.3.proof110",
+        "gold_node_id": "book.sub7.3.proof116",
         "relevance": 2,
         "page_pdf": 92,
         "page_printed": "73",
@@ -377,7 +377,7 @@
       },
       {
         "gold_label": "Proposition 7.3",
-        "gold_node_id": "book.sub7.3.proposition109",
+        "gold_node_id": "book.sub7.3.proposition115",
         "relevance": 1,
         "page_pdf": 92,
         "page_printed": "73",
@@ -387,7 +387,7 @@
     "D-020": [
       {
         "gold_label": "Proposition 7.14",
-        "gold_node_id": "book.sub7.6.proposition126",
+        "gold_node_id": "book.sub7.6.proposition133",
         "relevance": 2,
         "page_pdf": 98,
         "page_printed": "79",
@@ -395,7 +395,7 @@
       },
       {
         "gold_label": "Corollary 7.15",
-        "gold_node_id": "book.sub7.6.corollary128",
+        "gold_node_id": "book.sub7.6.corollary135",
         "relevance": 2,
         "page_pdf": 98,
         "page_printed": "79",
@@ -403,7 +403,7 @@
       },
       {
         "gold_label": "Proposition 7.16",
-        "gold_node_id": "book.sub7.6.proposition130",
+        "gold_node_id": "book.sub7.6.proposition137",
         "relevance": 2,
         "page_pdf": 98,
         "page_printed": "79",
@@ -465,7 +465,7 @@
     "D-023": [
       {
         "gold_label": "Theorem 7.9",
-        "gold_node_id": "book.sub7.5.theorem120",
+        "gold_node_id": "book.sub7.5.theorem126",
         "relevance": 2,
         "page_pdf": 95,
         "page_printed": "76",
@@ -473,7 +473,7 @@
       },
       {
         "gold_label": "Corollary 7.10",
-        "gold_node_id": "book.sub7.5.corollary122",
+        "gold_node_id": "book.sub7.5.corollary128",
         "relevance": 2,
         "page_pdf": 95,
         "page_printed": "76",
@@ -481,7 +481,7 @@
       },
       {
         "gold_label": "Proposition 7.14",
-        "gold_node_id": "book.sub7.6.proposition126",
+        "gold_node_id": "book.sub7.6.proposition133",
         "relevance": 1,
         "page_pdf": 98,
         "page_printed": "79",
@@ -489,7 +489,7 @@
       },
       {
         "gold_label": "Corollary 7.15",
-        "gold_node_id": "book.sub7.6.corollary128",
+        "gold_node_id": "book.sub7.6.corollary135",
         "relevance": 1,
         "page_pdf": 98,
         "page_printed": "79",
@@ -497,7 +497,7 @@
       },
       {
         "gold_label": "Theorem 7.7",
-        "gold_node_id": "book.sub7.5.theorem117",
+        "gold_node_id": "book.sub7.5.theorem123",
         "relevance": 1,
         "page_pdf": 94,
         "page_printed": "75",
@@ -507,7 +507,7 @@
     "D-024": [
       {
         "gold_label": "Proposition 7.16",
-        "gold_node_id": "book.sub7.6.proposition130",
+        "gold_node_id": "book.sub7.6.proposition137",
         "relevance": 2,
         "page_pdf": 98,
         "page_printed": "79",
@@ -515,7 +515,7 @@
       },
       {
         "gold_label": "Theorem 7.7",
-        "gold_node_id": "book.sub7.5.theorem117",
+        "gold_node_id": "book.sub7.5.theorem123",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -523,7 +523,7 @@
       },
       {
         "gold_label": "Proposition 7.14",
-        "gold_node_id": "book.sub7.6.proposition126",
+        "gold_node_id": "book.sub7.6.proposition133",
         "relevance": 1,
         "page_pdf": 98,
         "page_printed": "79",
@@ -541,7 +541,7 @@
     "D-025": [
       {
         "gold_label": "Corollary 7.15",
-        "gold_node_id": "book.sub7.6.corollary128",
+        "gold_node_id": "book.sub7.6.corollary135",
         "relevance": 2,
         "page_pdf": 98,
         "page_printed": "79",
@@ -549,7 +549,7 @@
       },
       {
         "gold_label": "Corollary 7.10",
-        "gold_node_id": "book.sub7.5.corollary122",
+        "gold_node_id": "book.sub7.5.corollary128",
         "relevance": 1,
         "page_pdf": 95,
         "page_printed": "76",
@@ -559,7 +559,7 @@
     "D-026": [
       {
         "gold_label": "Theorem 7.7",
-        "gold_node_id": "book.sub7.5.theorem117",
+        "gold_node_id": "book.sub7.5.theorem123",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -567,7 +567,7 @@
       },
       {
         "gold_label": "Proof of Theorem 7.7",
-        "gold_node_id": "book.sub7.5.proof118",
+        "gold_node_id": "book.sub7.5.proof124",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -575,7 +575,7 @@
       },
       {
         "gold_label": "Corollary 7.8",
-        "gold_node_id": "book.sub7.5.corollary119",
+        "gold_node_id": "book.sub7.5.corollary125",
         "relevance": 2,
         "page_pdf": 94,
         "page_printed": "75",
@@ -583,7 +583,7 @@
       },
       {
         "gold_label": "Proposition 7.4",
-        "gold_node_id": "book.sub7.4.proposition112",
+        "gold_node_id": "book.sub7.4.proposition118",
         "relevance": 1,
         "page_pdf": 92,
         "page_printed": "73",
