@@ -13,6 +13,133 @@ the go/no-go?
 
 ---
 
+# R4 — FINAL: THE CANONICAL NUMBER + THE VERDICT (spec §16–17)
+
+**Verdict: GO. Structured RAG is the right foundation for #50.** One config
+(`C_full`, C's locked retriever on the frozen corpus `track-a-r1`), scored ONCE
+through the agreed harness from one gold source — reported as two honest columns.
+Source: `track-d/canonical.py` (persisted to `d_speed_cost` stage `canonical`).
+
+## R4.1 — THE CANONICAL BAKE-OFF (the figure the spike is cited by)
+
+`C_full` = lexical FTS + pgvector + type/label boost + coarse-to-fine + rerank,
+on corpus `track-a-r1`, scored against file-gold (== db-gold, verified).
+
+| metric | **STRICT** (right *unit*) | **PAGE-AWARE** (right *place*) | naive_baseline (page) |
+|---|---|---|---|
+| recall@5 | **0.613** | **0.854** | 0.718 |
+| recall@10 | 0.737 | 0.946 | 0.822 |
+| MRR | 0.710 | 0.910 | 0.540 |
+| nDCG@5 | 0.589 | 0.780 | 0.482 |
+| exact-label-hit | 0.500 | 0.500 | 0.000 |
+| traceability | 0.988 | 0.988 | 0.000 |
+| latency p50 / p95 | 1,938 ms / 2,353 ms | (same run) | — |
+
+**This resolves the R3 presentation gap.** D's "0.66" and C's "0.85" were never a
+disagreement — they are the **same locked config seen two ways**: strict =
+"retrieved the right node/unit" (0.613@5), page-aware = "landed on the right
+source page" (0.854@5). The page-aware column reproduces C's self-reported
+recall@5=0.854 **to the digit**. STRICT is the right number to cite for the
+structured-RAG *claim* (did we get the exact unit); PAGE-AWARE is the user-facing
+*experience* (did we surface the right page).
+
+- **Label is the freeze-stable join key:** A's R4 freeze renumbered node_id
+  suffixes (`theorem117`→`123`) while `C_full`'s `d_results` carry pre-freeze ids
+  (gold↔C_full node_id overlap only 20/37), so STRICT joins on label and is
+  invariant to the renumber. (Once C re-indexes onto the frozen ids, node_id and
+  label agree and STRICT is unchanged.)
+
+**Structure vs naive — the decisive deltas (page-aware, the baseline's only fair rule):**
+`C_full` 0.854 vs naive 0.718 recall@5; **MRR +0.370, nDCG@5 +0.298, exact-label
++0.500, traceability +0.988.** The naive baseline gets *near* the answer by page
+but cannot rank it, name it by label, or trace it — the three §17 capabilities
+are **0**. Structure delivers all three.
+
+## R4.2 — FINAL §17 attribution (C_full, strict, primary gold not in top-3)
+
+**18 / 26 hit in top-3; 8 residual misses** (several recovered by rank 5–10:
+strict recall@10 is 0.737):
+
+| bucket | n | side |
+|---|---|---|
+| weak_vector | 6 | RETRIEVAL (C) |
+| metadata_rerank | 1 | RETRIEVAL (C) |
+| graph_expansion | 1 | UPSTREAM (A/B) |
+
+**7 retrieval-side, 1 upstream.** The residual hard set is exactly as predicted in
+R3: the **6 `weak_vector`** misses (D-012/015/016/017/020/021 — conceptual
+paraphrases + structural neighbors where the right unit isn't in the candidate
+pool) want a **wider candidate set / richer contextual embed-input**, not a
+different embedding model; and **D-023 `graph_expansion`** (the multi-hop "results
+that depend on the quotient construction" walk) is the single weakest capability —
+it needs deeper bounded expansion on B's edges. The `metadata_rerank` bucket
+shrank from 4 (R3 reference) to 1: rerank did its job.
+
+This is the §17 thesis, confirmed on Tu: **segmentation/structure is solved**
+(extraction + page-mapping are not the bottleneck — 0 extraction/chunking-coverage
+misses); the remaining wins are in **recall-pool width + bounded graph expansion**.
+
+## R4.3 — FINAL speed/cost ledger + full-book (430 pp) projection
+
+`d_speed_cost`; `run_label='fullbook_projection'` for the projection (~13.9× page
+scale; per-query cost is index-size-insensitive — it does NOT scale with book size).
+
+| stage | metric | slice | full book (430 pp) |
+|---|---|---|---|
+| extraction | wall seconds | 0.68 s | **~6.5 s** (A) |
+| index build | chunks | 141 | ~1,955 |
+| index build | embed tokens / USD (one-time) | ~43K / ~$0.0009 | ~600K / **~$0.012** |
+| query | latency p50 / p95 (`C_full`) | 1,938 / 2,353 ms | **same** (index-insensitive) |
+| query | embed $ / query | ~$2e-7 | ~$2e-7 |
+| query | rerank tokens / $ per query (est) | ~7,600 / ~$0.023 | ~$0.023 |
+
+**"Fits in a daily synthesis pass?" — YES.** Index the whole book once for
+**~$0.012 and ~6.5 s**. Each book lookup is **~1.9 s and ~$0.023** (the LLM rerank
+is the only real cost line; a no-rerank hybrid is ~73 ms / ~$2e-7). A daily pass
+issuing a handful of lookups costs **cents and seconds** total — comfortably in
+budget. If a pass ever needs hundreds of reranked lookups, gate rerank to the
+ambiguous top-N (it buys the ordering wins; recall-pool width is the cheaper lever
+for the residual misses).
+
+## R4.4 — gold loader bug (R3) FIXED + one gold source
+
+`load_gold_from_db()` now SELECTs `page_pdf` (the R3 omission that forced C onto a
+JSON side-channel and depressed its strict number). Verified: **file-gold ==
+db-gold** (66/66 page_pdf both sides, identical label/relevance/page/node_id per
+query), so STRICT and PAGE-AWARE are computed from one source — no side-channel,
+no drift. `page_pdf`/`page_printed` are real `d_gold` columns (R3).
+
+## R4.5 — D's FINAL GO / NO-GO
+
+**GO — structured RAG IS the right foundation for #50.** Evidence on Tu's hard
+slice (Ch1 §1–§3 + Ch2 §7), C's locked `C_full`:
+
+- **The bracket:** right-UNIT recall@5 = **0.613** (strict), right-PLACE recall@5 =
+  **0.854** (page); MRR 0.71→0.91; recall@10 0.74→0.95. A user asking a book
+  question lands on the correct page **~85%** of the time at k≤5 and the exact
+  node **~61%**, with a **traceable** path back to source **99%** of the time.
+- **Why structured, not naive:** the naive fixed-window baseline matches on page
+  ~72% but scores **0** on exact-label, **0** on traceability, and 0.54 MRR — it
+  cannot answer "Theorem 7.7", cannot cite, cannot rank. The §17 capabilities are
+  the whole point, and they come from structure, not embeddings.
+- **Residual misses (8, named & measured):** 6 `weak_vector` (recall-pool width /
+  contextual embed-input) + 1 `metadata_rerank` + **D-023 multi-hop graph**
+  (deeper bounded expansion on B's edges). No extraction/chunking-coverage misses —
+  segmentation is solved.
+- **Caveats for #50:** (1) **recall ceiling** — strict recall@5 is 0.61, so a
+  single retrieval won't always surface the exact unit; design the Mentor Loop to
+  use k≥5–10 and the page-aware path, and widen the candidate pool. (2)
+  **multi-hop graph expansion** is the weakest capability — treat "what depends on
+  X" as a known-hard query class. (3) **rerank latency** (~1.9 s) is the one cost
+  lever — gate it. (4) the `concepts→canonical-object` problem (#53) is **out of
+  this spike's scope** and untested here — it remains an open risk for #50.
+- **Bottom line:** on a clean native math PDF, structure-aware hybrid retrieval is
+  feasible, measurably beats naive on every capability that matters, and is cheap
+  enough to run in the daily pass. **Build the #50 foundation on it**, with the
+  recall-pool and graph-expansion levers as the first hardening work.
+
+---
+
 # R3 — reconciled to ONE agreed number + final efficiency picture
 
 **The reconcile is resolved, the bake-off has one agreed table, the §17
