@@ -1,0 +1,3 @@
+# Generated per-run dump (carries retrieved chunk text + latencies). The
+# reproducible numbers live in RESULTS.md; regenerate with run_eval.py.
+last_run.json

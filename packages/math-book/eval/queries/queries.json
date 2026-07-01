@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "owner": "track-d",
+    "slice": "Tu: Ch1 §1–§3 + Ch2 §7 (Quotients)",
+    "note": "§7 'Quotients' lives in Chapter 2 (Manifolds), pdf p90–101, printed p71–82. Ch1 §1–§3 = pdf p22–52, printed p3–33. Printed = pdf - 19 in this region. Gold is anchored to STABLE LABELS (Tu's own §N / N.M / 'Theorem 7.x' scheme), not node_ids, because a_nodes is empty this round. B/C map labels -> node_ids when A lands.",
+    "categories": ["direct", "conceptual", "structural", "graph_expansion"],
+    "schema_version": 1
+  },
+  "queries": [
+    {"query_id": "D-001", "category": "direct", "query_text": "Theorem 7.7", "intent": "label_lookup: find the exact node carrying label 'Theorem 7.7' (Hausdorff quotient <=> closed graph)."},
+    {"query_id": "D-002", "category": "direct", "query_text": "definition of the quotient topology", "intent": "definition_lookup: the construction defining open sets in S/~ via preimages under the projection (subsection 7.1)."},
+    {"query_id": "D-003", "category": "direct", "query_text": "Proposition 7.1", "intent": "label_lookup: continuity of the induced map f-bar on a quotient."},
+    {"query_id": "D-004", "category": "direct", "query_text": "Corollary 7.8", "intent": "label_lookup: a space is Hausdorff iff the diagonal is closed."},
+    {"query_id": "D-005", "category": "direct", "query_text": "Taylor's theorem with remainder", "intent": "named_lookup: the lemma stating the Taylor expansion with remainder on a star-shaped open set (Lemma 1.4)."},
+    {"query_id": "D-006", "category": "direct", "query_text": "Proposition 3.8 even permutation inversions", "intent": "label_lookup: a permutation is even iff it has an even number of inversions."},
+    {"query_id": "D-007", "category": "direct", "query_text": "definition of real projective space RP^n", "intent": "definition_lookup: RP^n as the quotient of R^{n+1}-{0} by scalar equivalence (subsection 7.6)."},
+    {"query_id": "D-008", "category": "direct", "query_text": "Leibniz rule for a vector field", "intent": "named_lookup: Proposition 2.6, the Leibniz/product rule for a C-infinity vector field acting on functions."},
+
+    {"query_id": "D-009", "category": "conceptual", "query_text": "what makes a map a quotient map", "intent": "concept: the defining universal/continuity property of the quotient topology and induced maps (7.1–7.2, Prop 7.1)."},
+    {"query_id": "D-010", "category": "conceptual", "query_text": "difference between smooth (C-infinity) and analytic functions", "intent": "concept: subsection 1.1 contrasting C-infinity vs analytic, with the flat-at-0 counterexample (Example 1.3)."},
+    {"query_id": "D-011", "category": "conceptual", "query_text": "when is a quotient space Hausdorff", "intent": "concept: conditions for Hausdorffness of S/~ — the section's main results (Prop 7.4, Thm 7.7, Cor 7.8)."},
+    {"query_id": "D-012", "category": "conceptual", "query_text": "tangent vectors as derivations", "intent": "concept: §2's reinterpretation of tangent vectors at a point as point-derivations (Thm 2.2, Lemma 2.1)."},
+    {"query_id": "D-013", "category": "conceptual", "query_text": "anticommutativity of the wedge product", "intent": "concept: the alternating/anticommutative property of the wedge product (Prop 3.21, Cor 3.23)."},
+    {"query_id": "D-014", "category": "conceptual", "query_text": "open equivalence relation and second countability of the quotient", "intent": "concept: how an open equivalence relation transfers second-countability to S/~ (Thm 7.9, Cor 7.10)."},
+    {"query_id": "D-015", "category": "conceptual", "query_text": "gluing the edges of a square to make a torus", "intent": "concept: the motivating identification/gluing example opening §7 (intro prose + Example 7.2)."},
+    {"query_id": "D-016", "category": "conceptual", "query_text": "why a quotient of a manifold need not be a manifold", "intent": "concept: the section intro's caution + necessary condition for Hausdorff quotient (§7 intro, Prop 7.4)."},
+
+    {"query_id": "D-017", "category": "structural", "query_text": "what comes immediately after Theorem 7.7", "intent": "structural_neighbor: the next labeled node after Theorem 7.7 (expected Corollary 7.8)."},
+    {"query_id": "D-018", "category": "structural", "query_text": "which definitions and results are in subsection 7.5 Open Equivalence Relations", "intent": "structural_contains: enumerate labeled nodes under subsection 7.5 (Example 7.6, Thm 7.7, Cor 7.8, Thm 7.9, Cor 7.10)."},
+    {"query_id": "D-019", "category": "structural", "query_text": "what is the proof attached to Proposition 7.3", "intent": "structural_proof: the proof node proving Proposition 7.3 (f-bar is a homeomorphism)."},
+    {"query_id": "D-020", "category": "structural", "query_text": "which propositions and corollaries are in subsection 7.7 The Standard C-infinity Atlas on RP^n", "intent": "structural_contains: labeled nodes under 7.7 (Prop 7.14, Cor 7.15, Prop 7.16)."},
+    {"query_id": "D-021", "category": "structural", "query_text": "what comes right before Theorem 2.2", "intent": "structural_neighbor: the previous labeled node before Theorem 2.2 (expected Lemma 2.1)."},
+    {"query_id": "D-022", "category": "structural", "query_text": "list the subsections of §3 The Exterior Algebra of Multicovectors", "intent": "structural_contains: subsection headings 3.1–3.10 under §3."},
+
+    {"query_id": "D-023", "category": "graph_expansion", "query_text": "results that depend on the quotient construction and the projection being an open map", "intent": "expansion: from the open-equivalence-relation construction, gather dependent results (Thm 7.9, Cor 7.10, Prop 7.14, Cor 7.15)."},
+    {"query_id": "D-024", "category": "graph_expansion", "query_text": "everything needed to prove that real projective space RP^n is Hausdorff", "intent": "expansion: Prop 7.16 and its dependencies (Thm 7.7, open equiv relation Prop 7.14, definition of RP^n)."},
+    {"query_id": "D-025", "category": "graph_expansion", "query_text": "results that build on Corollary 7.10 about second-countable quotients", "intent": "expansion: forward dependents/uses of Cor 7.10 (Cor 7.15 'RP^n is second countable' applies it)."},
+    {"query_id": "D-026", "category": "graph_expansion", "query_text": "material around Theorem 7.7: its proof, the corollary it yields, and the definitions it relies on", "intent": "expansion: bounded neighborhood of Thm 7.7 — its proof, Cor 7.8, and the open-equivalence-relation / Hausdorff definitions."}
+  ]
+}
