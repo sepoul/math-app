@@ -1,0 +1,27 @@
+{
+  "run": "book-rag-platform-integration",
+  "created": "2026-07-01",
+  "goal": "Package the proven book-RAG spike as a lean platform layer (generic embed + vector primitives, modeled on AudioInterpreter/ImageInterpreter) + a math-app domain packaged as platform jobs+artifacts. Reuse spike branch code. No local scripts.",
+  "orchestration": {
+    "control_plane": "main session (orchestrator)",
+    "token_policy": "Explore-scouts return compact briefs; implementers get tight briefs + reuse spike code; fork only to inherit an established compact context; follow-ons via SendMessage on same session; no agent re-explores the repo.",
+    "mechanism": "Agent tool (Explore | general-purpose | fork subagent types) + SendMessage re-engagement",
+    "topology_note": "nodes = agents; parent = who spawned/forked; spawn = 'fresh' | 'fork' | 'resume'; this file is the authoritative tree + session-id store."
+  },
+  "spike_source_branches": {
+    "extraction": "spike/extraction-skeleton",
+    "graph": "spike/graph-grounding",
+    "retrieval": "spike/hybrid-retrieval",
+    "eval": "spike/eval-efficiency",
+    "report": "spike/orchestration-report"
+  },
+  "nodes": [
+    {"id": "orchestrator", "role": "control-plane", "type": "main", "parent": null, "spawn": "root", "status": "active", "branch": "integration/book-rag-platform"},
+    {"id": "a7ebeeb7afb3f10de", "role": "scout-platform-primitives", "type": "Explore", "parent": "orchestrator", "spawn": "fresh", "status": "running", "branch": null, "task": "recon ai-platform provider-helper pattern (audio/vision), existing embed/vector support, basic_agent, storage seam"},
+    {"id": "a8fd2b2d772a002f5", "role": "scout-domain-packaging", "type": "Explore", "parent": "orchestrator", "spawn": "fresh", "status": "running", "branch": null, "task": "recon math-app domain package template (control/execution/workflow/artifacts/bundle) + node->provider call + where book-RAG slots"}
+  ],
+  "edges": [
+    {"from": "orchestrator", "to": "a7ebeeb7afb3f10de", "kind": "spawn"},
+    {"from": "orchestrator", "to": "a8fd2b2d772a002f5", "kind": "spawn"}
+  ]
+}
