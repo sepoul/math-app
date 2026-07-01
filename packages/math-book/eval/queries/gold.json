@@ -1,0 +1,594 @@
+{
+  "meta": {
+    "owner": "track-d",
+    "relevance_scale": {
+      "2": "primary / exact answer",
+      "1": "relevant / supporting",
+      "0": "not relevant"
+    },
+    "anchoring": "gold_node_id now resolved to Track A's a_nodes (run track-a-r1) where a node exists; gold_label + page_pdf kept so C's label-less naive baseline scores on the same stick. Unresolved labels (inline exercises A merged into prose) keep gold_node_id=null and remain page-anchored.",
+    "slice": "Tu: Ch1 §1–§3 + Ch2 §7 (Quotients)"
+  },
+  "gold": {
+    "D-001": [
+      {
+        "gold_label": "Theorem 7.7",
+        "gold_node_id": "book.sub7.5.theorem123",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Exact label match: 'S/~ Hausdorff iff graph R is closed in S×S'."
+      }
+    ],
+    "D-002": [
+      {
+        "gold_label": "subsection 7.1 The Quotient Topology",
+        "gold_node_id": "book.sub7.1",
+        "relevance": 2,
+        "page_pdf": 90,
+        "page_printed": "71",
+        "rationale": "The defining text: U in S/~ is open iff π^{-1}(U) is open in S."
+      },
+      {
+        "gold_label": "Proposition 7.1",
+        "gold_node_id": "book.sub7.2.proposition111",
+        "relevance": 1,
+        "page_pdf": 91,
+        "page_printed": "72",
+        "rationale": "Immediate consequence characterizing continuity on the quotient."
+      }
+    ],
+    "D-003": [
+      {
+        "gold_label": "Proposition 7.1",
+        "gold_node_id": "book.sub7.2.proposition111",
+        "relevance": 2,
+        "page_pdf": 91,
+        "page_printed": "72",
+        "rationale": "Exact label: induced map f-bar continuous iff f∘π is continuous."
+      }
+    ],
+    "D-004": [
+      {
+        "gold_label": "Corollary 7.8",
+        "gold_node_id": "book.sub7.5.corollary125",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Exact label: S Hausdorff iff diagonal Δ closed in S×S."
+      }
+    ],
+    "D-005": [
+      {
+        "gold_label": "Lemma 1.4",
+        "gold_node_id": "book.sub1.2.lemma7",
+        "relevance": 2,
+        "page_pdf": 25,
+        "page_printed": "6",
+        "rationale": "Tu labels Taylor's theorem with remainder as Lemma 1.4 (title in parentheses)."
+      },
+      {
+        "gold_label": "subsection 1.2 Taylor's Theorem with Remainder",
+        "gold_node_id": "book.sub1.2",
+        "relevance": 1,
+        "page_pdf": 24,
+        "page_printed": "5",
+        "rationale": "Enclosing subsection heading for the named result."
+      }
+    ],
+    "D-006": [
+      {
+        "gold_label": "Proposition 3.8",
+        "gold_node_id": "book.sub3.2.proposition49",
+        "relevance": 2,
+        "page_pdf": 41,
+        "page_printed": "22",
+        "rationale": "Exact label: a permutation is even iff it has an even number of inversions."
+      }
+    ],
+    "D-007": [
+      {
+        "gold_label": "subsection 7.6 Real Projective Space",
+        "gold_node_id": "book.sub7.6",
+        "relevance": 2,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Defining text: RP^n = (R^{n+1}-{0})/~ with x~y iff y=tx, t≠0."
+      },
+      {
+        "gold_label": "Exercise 7.11",
+        "gold_node_id": "book.sub7.6.exercise130",
+        "relevance": 1,
+        "page_pdf": 96,
+        "page_printed": "77",
+        "rationale": "RP^n as a quotient of a sphere — alternative characterization."
+      }
+    ],
+    "D-008": [
+      {
+        "gold_label": "Proposition 2.6",
+        "gold_node_id": "book.sub2.5.proposition32",
+        "relevance": 2,
+        "page_pdf": 35,
+        "page_printed": "16",
+        "rationale": "Tu's 'Leibniz rule for a vector field' is Proposition 2.6 (parenthetical title)."
+      }
+    ],
+    "D-009": [
+      {
+        "gold_label": "subsection 7.1 The Quotient Topology",
+        "gold_node_id": "book.sub7.1",
+        "relevance": 2,
+        "page_pdf": 90,
+        "page_printed": "71",
+        "rationale": "Construction of the quotient topology / projection map — the defining property of a quotient map."
+      },
+      {
+        "gold_label": "Proposition 7.1",
+        "gold_node_id": "book.sub7.2.proposition111",
+        "relevance": 2,
+        "page_pdf": 91,
+        "page_printed": "72",
+        "rationale": "The universal-property characterization of maps out of a quotient."
+      },
+      {
+        "gold_label": "subsection 7.2 Continuity of a Map on a Quotient",
+        "gold_node_id": "book.sub7.2",
+        "relevance": 1,
+        "page_pdf": 91,
+        "page_printed": "72",
+        "rationale": "Enclosing subsection for the continuity characterization."
+      }
+    ],
+    "D-010": [
+      {
+        "gold_label": "subsection 1.1 C∞ Versus Analytic Functions",
+        "gold_node_id": "book.sub1.1",
+        "relevance": 2,
+        "page_pdf": 23,
+        "page_printed": "4",
+        "rationale": "The subsection that contrasts C-infinity with analytic functions directly."
+      },
+      {
+        "gold_label": "Example 1.3",
+        "gold_node_id": "book.sub1.1.example5",
+        "relevance": 2,
+        "page_pdf": 24,
+        "page_printed": "5",
+        "rationale": "A C∞ function very flat at 0 — the canonical smooth-but-not-analytic counterexample."
+      },
+      {
+        "gold_label": "Example 1.2",
+        "gold_node_id": "book.sub1.1.example4",
+        "relevance": 1,
+        "page_pdf": 23,
+        "page_printed": "4",
+        "rationale": "Supporting example in the same subsection."
+      }
+    ],
+    "D-011": [
+      {
+        "gold_label": "Theorem 7.7",
+        "gold_node_id": "book.sub7.5.theorem123",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Hausdorff quotient iff graph closed — the section's main Hausdorff condition."
+      },
+      {
+        "gold_label": "Proposition 7.4",
+        "gold_node_id": "book.sub7.4.proposition118",
+        "relevance": 2,
+        "page_pdf": 92,
+        "page_printed": "73",
+        "rationale": "Necessary condition for a Hausdorff quotient (equivalence classes closed)."
+      },
+      {
+        "gold_label": "Corollary 7.8",
+        "gold_node_id": "book.sub7.5.corollary125",
+        "relevance": 1,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Diagonal-closed characterization of Hausdorff, used in the proof chain."
+      },
+      {
+        "gold_label": "subsection 7.4 A Necessary Condition for a Hausdorff Quotient",
+        "gold_node_id": "book.sub7.4",
+        "relevance": 1,
+        "page_pdf": 92,
+        "page_printed": "73",
+        "rationale": "Enclosing subsection topic."
+      }
+    ],
+    "D-012": [
+      {
+        "gold_label": "Theorem 2.2",
+        "gold_node_id": "book.sub2.3.theorem25",
+        "relevance": 2,
+        "page_pdf": 32,
+        "page_printed": "13",
+        "rationale": "The isomorphism T_p(R^n) ≅ D_p(R^n) — tangent vectors AS derivations."
+      },
+      {
+        "gold_label": "Lemma 2.1",
+        "gold_node_id": "book.sub2.3.lemma23",
+        "relevance": 1,
+        "page_pdf": 32,
+        "page_printed": "13",
+        "rationale": "Point-derivation lemma supporting the identification."
+      },
+      {
+        "gold_label": "subsection 2.3 Derivations at a Point",
+        "gold_node_id": "book.sub2.3",
+        "relevance": 1,
+        "page_pdf": 32,
+        "page_printed": "13",
+        "rationale": "Enclosing subsection."
+      }
+    ],
+    "D-013": [
+      {
+        "gold_label": "Proposition 3.21",
+        "gold_node_id": "book.sub3.8.proposition74",
+        "relevance": 2,
+        "page_pdf": 46,
+        "page_printed": "27",
+        "rationale": "The wedge product is anticommutative — exact statement."
+      },
+      {
+        "gold_label": "Corollary 3.23",
+        "gold_node_id": "book.sub3.8.corollary77",
+        "relevance": 1,
+        "page_pdf": 47,
+        "page_printed": "28",
+        "rationale": "f∧f=0 for odd-degree multicovectors — immediate consequence."
+      },
+      {
+        "gold_label": "subsection 3.8 Anticommutativity of the Wedge Product",
+        "gold_node_id": "book.sub3.8",
+        "relevance": 1,
+        "page_pdf": 46,
+        "page_printed": "27",
+        "rationale": "Enclosing subsection heading names the concept."
+      }
+    ],
+    "D-014": [
+      {
+        "gold_label": "Theorem 7.9",
+        "gold_node_id": "book.sub7.5.theorem126",
+        "relevance": 2,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Open equivalence relation + countable basis transfers to S/~."
+      },
+      {
+        "gold_label": "Corollary 7.10",
+        "gold_node_id": "book.sub7.5.corollary128",
+        "relevance": 2,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Open equiv relation on second-countable space => S/~ second countable."
+      },
+      {
+        "gold_label": "subsection 7.5 Open Equivalence Relations",
+        "gold_node_id": "book.sub7.5",
+        "relevance": 1,
+        "page_pdf": 93,
+        "page_printed": "74",
+        "rationale": "Enclosing subsection."
+      }
+    ],
+    "D-015": [
+      {
+        "gold_label": "subsection 7.1 The Quotient Topology",
+        "gold_node_id": "book.sub7.1",
+        "relevance": 2,
+        "page_pdf": 90,
+        "page_printed": "71",
+        "rationale": "Section intro prose: gluing square edges -> cylinder/torus (Figure 7.1)."
+      },
+      {
+        "gold_label": "Example 7.2",
+        "gold_node_id": "book.sub7.3.example114",
+        "relevance": 1,
+        "page_pdf": 92,
+        "page_printed": "73",
+        "rationale": "Unit interval with endpoints identified -> S^1, the canonical gluing example."
+      }
+    ],
+    "D-016": [
+      {
+        "gold_label": "subsection 7.1 The Quotient Topology",
+        "gold_node_id": "book.sub7.1",
+        "relevance": 2,
+        "page_pdf": 90,
+        "page_printed": "71",
+        "rationale": "Intro states a quotient of a manifold is often not a manifold and frames the Hausdorff/second-countable conditions."
+      },
+      {
+        "gold_label": "Proposition 7.4",
+        "gold_node_id": "book.sub7.4.proposition118",
+        "relevance": 1,
+        "page_pdf": 92,
+        "page_printed": "73",
+        "rationale": "Necessary condition for a Hausdorff quotient — why manifold-ness can fail."
+      }
+    ],
+    "D-017": [
+      {
+        "gold_label": "Corollary 7.8",
+        "gold_node_id": "book.sub7.5.corollary125",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "The next labeled environment after Theorem 7.7 (next edge target)."
+      }
+    ],
+    "D-018": [
+      {
+        "gold_label": "Example 7.6",
+        "gold_node_id": "book.sub7.5.example122",
+        "relevance": 2,
+        "page_pdf": 93,
+        "page_printed": "74",
+        "rationale": "Under 7.5: projection to a quotient is in general not open."
+      },
+      {
+        "gold_label": "Theorem 7.7",
+        "gold_node_id": "book.sub7.5.theorem123",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Under 7.5."
+      },
+      {
+        "gold_label": "Corollary 7.8",
+        "gold_node_id": "book.sub7.5.corollary125",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Under 7.5."
+      },
+      {
+        "gold_label": "Theorem 7.9",
+        "gold_node_id": "book.sub7.5.theorem126",
+        "relevance": 2,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Under 7.5."
+      },
+      {
+        "gold_label": "Corollary 7.10",
+        "gold_node_id": "book.sub7.5.corollary128",
+        "relevance": 2,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Under 7.5 (before the 7.6 heading)."
+      }
+    ],
+    "D-019": [
+      {
+        "gold_label": "Proof of Proposition 7.3",
+        "gold_node_id": "book.sub7.3.proof116",
+        "relevance": 2,
+        "page_pdf": 92,
+        "page_printed": "73",
+        "rationale": "The proof node attached to Prop 7.3 (proven_by edge); it invokes Prop 7.1."
+      },
+      {
+        "gold_label": "Proposition 7.3",
+        "gold_node_id": "book.sub7.3.proposition115",
+        "relevance": 1,
+        "page_pdf": 92,
+        "page_printed": "73",
+        "rationale": "The theorem-like node the proof attaches to."
+      }
+    ],
+    "D-020": [
+      {
+        "gold_label": "Proposition 7.14",
+        "gold_node_id": "book.sub7.6.proposition133",
+        "relevance": 2,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "Under 7.7: the equivalence relation defining RP^n is open."
+      },
+      {
+        "gold_label": "Corollary 7.15",
+        "gold_node_id": "book.sub7.6.corollary135",
+        "relevance": 2,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "Under 7.7: RP^n is second countable."
+      },
+      {
+        "gold_label": "Proposition 7.16",
+        "gold_node_id": "book.sub7.6.proposition137",
+        "relevance": 2,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "Under 7.7: RP^n is Hausdorff."
+      }
+    ],
+    "D-021": [
+      {
+        "gold_label": "Lemma 2.1",
+        "gold_node_id": "book.sub2.3.lemma23",
+        "relevance": 2,
+        "page_pdf": 32,
+        "page_printed": "13",
+        "rationale": "The labeled environment immediately preceding Theorem 2.2 (previous edge)."
+      }
+    ],
+    "D-022": [
+      {
+        "gold_label": "subsection 3.1 Dual Space",
+        "gold_node_id": "book.sub3.1",
+        "relevance": 2,
+        "page_pdf": 38,
+        "page_printed": "19",
+        "rationale": "Subsection under §3."
+      },
+      {
+        "gold_label": "subsection 3.2 Permutations",
+        "gold_node_id": "book.sub3.2",
+        "relevance": 2,
+        "page_pdf": 39,
+        "page_printed": "20",
+        "rationale": "Subsection under §3."
+      },
+      {
+        "gold_label": "subsection 3.5 The Symmetrizing and Alternating Operators",
+        "gold_node_id": "book.sub3.5",
+        "relevance": 2,
+        "page_pdf": 43,
+        "page_printed": "24",
+        "rationale": "Subsection under §3."
+      },
+      {
+        "gold_label": "subsection 3.7 The Wedge Product",
+        "gold_node_id": "book.sub3.7",
+        "relevance": 2,
+        "page_pdf": 45,
+        "page_printed": "26",
+        "rationale": "Subsection under §3."
+      },
+      {
+        "gold_label": "subsection 3.10 A Basis for k-Covectors",
+        "gold_node_id": "book.sub3.10",
+        "relevance": 2,
+        "page_pdf": 50,
+        "page_printed": "31",
+        "rationale": "Subsection under §3 (last of 3.1–3.10)."
+      }
+    ],
+    "D-023": [
+      {
+        "gold_label": "Theorem 7.9",
+        "gold_node_id": "book.sub7.5.theorem126",
+        "relevance": 2,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Built on the open-equivalence / open-projection construction."
+      },
+      {
+        "gold_label": "Corollary 7.10",
+        "gold_node_id": "book.sub7.5.corollary128",
+        "relevance": 2,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Depends on Thm 7.9 / open relation."
+      },
+      {
+        "gold_label": "Proposition 7.14",
+        "gold_node_id": "book.sub7.6.proposition133",
+        "relevance": 1,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "Establishes the RP^n relation is open, feeding the chain."
+      },
+      {
+        "gold_label": "Corollary 7.15",
+        "gold_node_id": "book.sub7.6.corollary135",
+        "relevance": 1,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "Applies the open-relation second-countability result to RP^n."
+      },
+      {
+        "gold_label": "Theorem 7.7",
+        "gold_node_id": "book.sub7.5.theorem123",
+        "relevance": 1,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Open-relation Hausdorff criterion in the same dependency cluster."
+      }
+    ],
+    "D-024": [
+      {
+        "gold_label": "Proposition 7.16",
+        "gold_node_id": "book.sub7.6.proposition137",
+        "relevance": 2,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "The target: RP^n is Hausdorff."
+      },
+      {
+        "gold_label": "Theorem 7.7",
+        "gold_node_id": "book.sub7.5.theorem123",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "Hausdorff-quotient criterion the proof of 7.16 leans on."
+      },
+      {
+        "gold_label": "Proposition 7.14",
+        "gold_node_id": "book.sub7.6.proposition133",
+        "relevance": 1,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "RP^n relation is open — precondition for applying open-relation results."
+      },
+      {
+        "gold_label": "subsection 7.6 Real Projective Space",
+        "gold_node_id": "book.sub7.6",
+        "relevance": 1,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "Definition of RP^n the whole argument rests on."
+      }
+    ],
+    "D-025": [
+      {
+        "gold_label": "Corollary 7.15",
+        "gold_node_id": "book.sub7.6.corollary135",
+        "relevance": 2,
+        "page_pdf": 98,
+        "page_printed": "79",
+        "rationale": "'RP^n is second countable' — its proof is literally 'Apply Corollary 7.10.'"
+      },
+      {
+        "gold_label": "Corollary 7.10",
+        "gold_node_id": "book.sub7.5.corollary128",
+        "relevance": 1,
+        "page_pdf": 95,
+        "page_printed": "76",
+        "rationale": "The source node being built upon (anchor)."
+      }
+    ],
+    "D-026": [
+      {
+        "gold_label": "Theorem 7.7",
+        "gold_node_id": "book.sub7.5.theorem123",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "The seed node of the bounded neighborhood."
+      },
+      {
+        "gold_label": "Proof of Theorem 7.7",
+        "gold_node_id": "book.sub7.5.proof124",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "proven_by neighbor."
+      },
+      {
+        "gold_label": "Corollary 7.8",
+        "gold_node_id": "book.sub7.5.corollary125",
+        "relevance": 2,
+        "page_pdf": 94,
+        "page_printed": "75",
+        "rationale": "next/depends neighbor (diagonal-closed corollary)."
+      },
+      {
+        "gold_label": "Proposition 7.4",
+        "gold_node_id": "book.sub7.4.proposition118",
+        "relevance": 1,
+        "page_pdf": 92,
+        "page_printed": "73",
+        "rationale": "Adjacent Hausdorff-condition definition the theorem relates to."
+      }
+    ]
+  }
+}
