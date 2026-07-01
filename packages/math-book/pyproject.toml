@@ -1,0 +1,39 @@
+[project]
+name = "mathai-math-book"
+version = "0.3.0"
+description = "math_book domain — book-RAG packaged as platform jobs. `book_index` parses a book PDF (a storage_ref) into a structural skeleton (nodes/edges) and chunks+embeds it (via the platform EmbeddingsInterpreter) into the domain's own pgvector table, minting a BookStructureArtifact + BookIndexArtifact. `book_retrieve` runs hybrid (lexical + vector + type/label + intent-gated graph expansion) retrieval, optionally Claude-reranked, into ranked source-traceable hits. Ships in the `default` worker runtime."
+requires-python = ">=3.13"
+
+# Control-plane-only deps. The control module (`mathai.math_book.control`) is
+# imported by the API at boot (and by `aiplatform declare-artifacts`) to
+# register the JobControls + artifact types; it must stay engine-free, so we
+# don't pull the graph engine, any AI stack, or the pgvector/psycopg deps here.
+# `aiplatform-core` covers everything control-side needs.
+dependencies = [
+    "aiplatform-core>=0.1.1",
+]
+
+[project.optional-dependencies]
+# Execution-side deps — pulled by `packages/worker[default]`. What the domain
+# actually owns (the platform provides the rest from the worker base):
+#   * `pymupdf` — deterministic PDF parse in `_extraction.py` (spike Track A).
+#   * `psycopg` + `pgvector` — the domain-owned pgvector store (`vector_store.py`)
+#     talking to the tenant Postgres.
+# The platform provides, from the worker base (NOT domain deps):
+#   * embedding is the platform's `EmbeddingsInterpreter` (#61) over the `openai`
+#     SDK that ships in the worker base.
+#   * the rerank/LLM path (#64) is the platform's `basic_agent` (pydantic_ai +
+#     Anthropic), also in the worker base.
+execution = [
+    "pymupdf>=1.24",
+    "psycopg[binary]>=3.1",
+    "pgvector>=0.3",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true

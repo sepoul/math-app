@@ -1,0 +1,36 @@
+# Bundle manifest for the math_book domain (book-RAG jobs).
+#
+# Contract-first dev loop (the point of the scaffold — build UI + backend in
+# parallel against a typed contract before the heavy job logic exists):
+#
+#     # 1. Publish JUST the artifact types — no wheel, no job needed yet.
+#     #    `control_entrypoint` is imported in-process, so the package must be
+#     #    importable in the venv running the CLI:
+#     #      pip install -e packages/math-book --no-deps
+#     uv run aiplatform declare-artifacts \
+#         --bundle packages/math-book/bundle.toml \
+#         --api-url http://localhost:8000
+#
+#     # 2. Regenerate the SDK types from the local stack → BookStructureArtifact
+#     #    / BookIndexArtifact (+ the two job input/result shapes) light up:
+#     OPENAPI_SOURCE=http://localhost:8000/openapi.json \
+#         npm --prefix ../../ai-platform/sdk-ts run gen:api
+#
+# Once the index/retrieve jobs exist (#63/#64), ship the wheel the normal way:
+#
+#     cd packages/math-book && uv build --wheel
+#     uv run aiplatform deploy --bundle packages/math-book/bundle.toml \
+#                              --api-url http://your-platform:8000
+
+[package]
+name    = "mathai-math-book"
+version = "0.3.0"
+runtime = "default"
+# Path is recorded for `deploy`; `declare-artifacts` never reads the file, so
+# it's fine for this to not exist yet during the contract-first step.
+wheel   = "dist/mathai_math_book-0.3.0-py3-none-any.whl"
+
+[control]
+domain               = "math_book"
+control_entrypoint   = "mathai.math_book.control:register_control"
+execution_entrypoint = "mathai.math_book.execution:register_execution"
