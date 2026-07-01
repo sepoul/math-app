@@ -57,13 +57,15 @@ class ChunkRecord:
 
 @dataclass
 class KnnHit:
-    """One nearest-neighbour row from `knn_query` — chunk + its similarity."""
+    """One retrieved chunk row — from `knn_query` (vector) or `lexical_query`
+    (FTS). `score` is the leg's raw score (cosine similarity or ts_rank)."""
 
     chunk_id: str
     text: str
     node_id: Optional[str]
     source: Optional[str]
     score: float
+    kind: Optional[str] = None
 
 
 def _vec_literal(vec: Sequence[float]) -> str:
@@ -257,20 +259,19 @@ class VectorStore:
                  chunk.token_count, tsv_source),
             )
 
-    # -- read (for #64) -----------------------------------------------------
+    # -- read (#64 retrieval) ----------------------------------------------
     def knn_query(self, book_id: str, vec: Sequence[float], k: int) -> list[KnnHit]:
         """Return the `k` nearest chunks to `vec` within `book_id` (best first).
 
         Cosine distance via pgvector's `<=>`; `score = 1 - distance` so higher is
-        better. Ported from `spike/hybrid-retrieval:track-c/retrieve.py` (vector
-        leg). #64 layers the lexical + type/label + graph-expansion hybrid on top
-        of this."""
+        better. The vector leg of the hybrid
+        (`spike/hybrid-retrieval:track-c/retrieve_r2.py:Retriever.vector`)."""
         conn = self._connect()
         schema = self._schema
         query_vec = _vec_literal(vec)
         with conn.cursor() as cur:
             cur.execute(
-                f"""select chunk_id, text, node_id, source,
+                f"""select chunk_id, text, node_id, source, kind,
                            1 - (embedding <=> %s::vector) as score
                     from {schema}.{CHUNK_TABLE}
                     where book_id = %s and embedding is not null
@@ -279,7 +280,60 @@ class VectorStore:
                 (query_vec, book_id, query_vec, k),
             )
             return [KnnHit(chunk_id=r[0], text=r[1], node_id=r[2], source=r[3],
-                           score=float(r[4])) for r in cur.fetchall()]
+                           kind=r[4], score=float(r[5])) for r in cur.fetchall()]
+
+    def lexical_query(self, book_id: str, query: str, k: int) -> list[KnnHit]:
+        """The lexical leg of the hybrid — full-text search over the `tsv` column
+        (`ts_rank` on `plainto_tsquery`), scoped to `book_id`. Ported from
+        `retrieve_r2.py:Retriever.lexical`. Falls back to a substring `ILIKE`
+        scan when the FTS query matches nothing (short/symbolic queries that
+        `plainto_tsquery` reduces to empty), so a lexical signal is always
+        available."""
+        conn = self._connect()
+        schema = self._schema
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""select chunk_id, text, node_id, source, kind,
+                           ts_rank(tsv, plainto_tsquery('english', %s)) as r
+                    from {schema}.{CHUNK_TABLE}
+                    where book_id = %s
+                      and tsv @@ plainto_tsquery('english', %s)
+                    order by r desc limit %s;""",
+                (query, book_id, query, k),
+            )
+            rows = cur.fetchall()
+            if not rows:  # ILIKE fallback for FTS-empty queries
+                cur.execute(
+                    f"""select chunk_id, text, node_id, source, kind
+                        from {schema}.{CHUNK_TABLE}
+                        where book_id = %s
+                          and (text ilike %s or source ilike %s)
+                        limit %s;""",
+                    (book_id, f"%{query}%", f"%{query}%", k),
+                )
+                return [KnnHit(chunk_id=r[0], text=r[1], node_id=r[2], source=r[3],
+                               kind=r[4], score=1.0) for r in cur.fetchall()]
+            return [KnnHit(chunk_id=r[0], text=r[1], node_id=r[2], source=r[3],
+                           kind=r[4], score=float(r[5])) for r in rows]
+
+    def get_chunks_by_node(self, book_id: str, node_ids: Sequence[str]) -> list[KnnHit]:
+        """Fetch chunks for the given node_ids (for graph-expansion neighbours —
+        `retrieve_r2.py:Retriever.expand` reads chunk rows for the reached
+        nodes). Returns them without a score (the caller assigns the graph
+        score)."""
+        if not node_ids:
+            return []
+        conn = self._connect()
+        schema = self._schema
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""select chunk_id, text, node_id, source, kind
+                    from {schema}.{CHUNK_TABLE}
+                    where book_id = %s and node_id = any(%s);""",
+                (book_id, list(node_ids)),
+            )
+            return [KnnHit(chunk_id=r[0], text=r[1], node_id=r[2], source=r[3],
+                           kind=r[4], score=0.0) for r in cur.fetchall()]
 
     def delete_book(self, book_id: str) -> int:
         """Drop all chunks for `book_id` (a re-index supersedes the prior one).

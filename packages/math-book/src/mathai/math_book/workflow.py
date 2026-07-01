@@ -91,17 +91,22 @@ class BookIndexDependencies:
 class BookRetrieveDependencies:
     """Per-run inputs for the `book_retrieve` graph.
 
-    `query` / `k` / `intent` come from `BookRetrieveInput`. `embeddings`
-    embeds the query; `vector_store` runs the kNN + lexical query over the
-    domain table. Rerank (Claude via `basic_agent`) is wired in #64.
+    `query` / `k` / `intent` come from `BookRetrieveInput`. `embeddings` embeds
+    the query; `vector_store` runs the vector + lexical legs over the domain
+    table. `load_structure` is a callable `(book_id) -> BookStructureArtifact | None`
+    the node uses to load the skeleton (nodes for source-traceability + edges for
+    intent-gated graph expansion) — injected by the execution layer over the
+    artifact store. `rerank` gates the Claude rerank pass.
     """
 
     book_id: str = ""
     query: str = ""
     k: int = 8
     intent: Optional[str] = None
+    rerank: bool = True
     embeddings: Optional["EmbeddingsInterpreter"] = None
     vector_store: Optional["VectorStore"] = None
+    load_structure: Optional[object] = None  # (book_id) -> BookStructureArtifact | None
     logger: WorkerLogger = field(default_factory=NullLogger)
 
 
@@ -310,12 +315,27 @@ def _chunk_source(chunk: "Chunk") -> Optional[str]:
 # --- book_retrieve node -------------------------------------------------------
 
 
+def _edges_for_expand(structure) -> list[dict]:
+    """Convert `BookStructureArtifact.edges` (source/target/kind) into the
+    `{from_node_id,to_node_id,edge_type,confidence}` dicts `_graph.expand` walks."""
+    if structure is None:
+        return []
+    return [
+        {"from_node_id": e.source, "to_node_id": e.target,
+         "edge_type": e.kind, "confidence": e.confidence}
+        for e in structure.edges
+    ]
+
+
 @dataclass
 class Retrieve(BaseNode[BookState, BookRetrieveDependencies, BookState]):
     """Hybrid retrieval over an indexed book → ranked, source-traceable hits.
 
-    Lexical + vector + type/label + intent-gated graph expansion, then optional
-    Claude rerank (`basic_agent`). Fills `state.hits`.
+    The `C_full` retriever (spike Track C): min-max-fused vector + lexical +
+    type/label boosts + section demotion, intent-gated graph expansion over the
+    `BookStructureArtifact` edges, then an optional Claude rerank. Fills
+    `state.hits` with `BookRetrievalHit`s (chunk_id + node_id + label + page +
+    source). Best-effort — degrades to fewer/empty hits rather than failing.
     """
 
     stage_label = "Retrieve"
@@ -329,16 +349,71 @@ class Retrieve(BaseNode[BookState, BookRetrieveDependencies, BookState]):
         ctx.state.query = ctx.deps.query
         ctx.state.k = ctx.deps.k
         ctx.state.intent = ctx.deps.intent
-        # TODO(#64): port hybrid retrieval from spike/hybrid-retrieval
-        #   (spikes/book-rag/track-c/retrieve.py + rerank.py). Embed the query
-        #   (platform EmbeddingsInterpreter), run lexical + vector kNN
-        #   (ctx.deps.vector_store.knn_query) + type/label filters +
-        #   intent-gated graph expansion over the BookStructureArtifact edges,
-        #   optionally rerank the top-K with Claude via
-        #   ai_platform.ai.providers.basic_agent.basic_agent(model=RERANK_MODEL),
-        #   and fill ctx.state.hits with BookRetrievalHit values.
-        await log.info("Retrieve stub — no-op (logic lands in #64)")
+        ctx.state.reranked = ctx.deps.rerank
+
+        embeddings = ctx.deps.embeddings
+        store = ctx.deps.vector_store
+        if embeddings is None or store is None or not ctx.deps.query:
+            reason = ("no embeddings helper" if embeddings is None
+                      else "no vector store" if store is None else "empty query")
+            await log.info(f"retrieve skipped ({reason})")
+            return End(ctx.state)
+
+        # Load the skeleton once: nodes (source-traceability) + edges (expansion).
+        structure = None
+        loader = ctx.deps.load_structure
+        if loader is not None:
+            try:
+                structure = loader(ctx.deps.book_id)
+            except Exception:  # pragma: no cover - best effort
+                structure = None
+        node_index = {n.node_id: n for n in structure.nodes} if structure else {}
+        edges = _edges_for_expand(structure)
+
+        def _run_retrieval():
+            from mathai.math_book._retrieval import BookRetriever
+
+            retriever = BookRetriever(
+                book_id=ctx.deps.book_id,
+                vector_store=store,
+                embeddings=embeddings,
+                edges=edges,
+                node_index=node_index,
+            )
+            return retriever.hybrid(ctx.deps.query, k=ctx.deps.k, rerank=ctx.deps.rerank)
+
+        cands = await asyncio.to_thread(_run_retrieval)
+
+        from mathai.math_book.models import BookRetrievalHit
+
+        hits = [
+            BookRetrievalHit(
+                chunk_id=c.chunk_id,
+                node_id=c.node_id,
+                text=c.text,
+                score=float(c.score),
+                label=c.label,
+                page=c.page,
+                heading_path=list(c.heading_path or []),
+                source=_hit_source(c),
+            )
+            for c in cands
+        ]
+        ctx.state.hits = hits
+        await log.info(
+            f"retrieved {len(hits)} hit(s) "
+            f"(structural_expansion={'on' if edges else 'off'}, "
+            f"rerank={'on' if ctx.deps.rerank else 'off'})"
+        )
         return End(ctx.state)
+
+
+def _hit_source(cand) -> Optional[str]:
+    """Human-readable citation for a hit: heading breadcrumb + label + page."""
+    hp = " › ".join(cand.heading_path or [])
+    label = cand.label or ""
+    page = f"p{cand.page}" if cand.page else ""
+    return " ".join(x for x in (hp, label, page) if x).strip() or None
 
 
 # --- graphs + registries ------------------------------------------------------

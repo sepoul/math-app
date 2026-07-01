@@ -1,6 +1,6 @@
 [project]
 name = "mathai-math-book"
-version = "0.2.0"
+version = "0.3.0"
 description = "math_book domain — book-RAG packaged as platform jobs. `book_index` parses a book PDF (a storage_ref) into a structural skeleton (nodes/edges) and chunks+embeds it (via the platform EmbeddingsInterpreter) into the domain's own pgvector table, minting a BookStructureArtifact + BookIndexArtifact. `book_retrieve` runs hybrid (lexical + vector + type/label + intent-gated graph expansion) retrieval, optionally Claude-reranked, into ranked source-traceable hits. Ships in the `default` worker runtime."
 requires-python = ">=3.13"
 

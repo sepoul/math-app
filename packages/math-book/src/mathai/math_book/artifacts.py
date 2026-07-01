@@ -226,9 +226,56 @@ class BookIndexArtifact(BaseArtifact):
     )
 
 
+class RetrievedHit(BaseModel):
+    """One ranked, source-traceable hit stored on a `BookRetrievalArtifact`.
+
+    Mirrors `models.BookRetrievalHit` (the job-result shape) but defined here so
+    the artifact layer carries no import from `models` (models → artifacts is the
+    one-directional dependency). `node_id`/`label`/`page`/`heading_path` are the
+    source-traceability fields the design requires.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    chunk_id: str = Field(..., description="Id of the retrieved chunk.")
+    node_id: Optional[str] = Field(None, description="Structural node the chunk belongs to.")
+    label: Optional[str] = Field(None, description="Citation label (e.g. 'Theorem 7.7').")
+    page: Optional[int] = Field(None, description="1-based source page, if known.")
+    heading_path: list[str] = Field(
+        default_factory=list, description="Breadcrumb from the book root."
+    )
+    text: Optional[str] = Field(None, description="The chunk body.")
+    score: float = Field(..., description="Final (post-rerank) rank score.")
+
+
+class BookRetrievalArtifact(BaseArtifact):
+    """The result of one `book_retrieve` job — the ranked, source-traceable hits.
+
+    Minted by the retrieve job so a run's answer is ref-resolvable like every
+    other job's output (`GET /artifacts/{id}`). Small by design: the hits (with
+    node_id + label + page + heading_path for traceability), the echoed query,
+    and the retrieval config used.
+    """
+
+    artifact_type: Literal["book_retrieval"] = "book_retrieval"
+    book_id: str = Field(..., description="Id of the book retrieved over.")
+    query: str = Field(..., description="The query, echoed back.")
+    intent: Optional[str] = Field(None, description="Intent used to steer retrieval, if any.")
+    reranked: bool = Field(False, description="Whether a Claude rerank pass ran.")
+    hits: list[RetrievedHit] = Field(
+        default_factory=list, description="Ranked, source-traceable hits (best first)."
+    )
+    schema_version: int = Field(
+        default=BOOK_SCHEMA_VERSION,
+        ge=1,
+        description="Artifact shape version (1 = initial scaffold contract).",
+    )
+
+
 # Registry the control plane publishes — keyed on the `artifact_type` Literal
 # default (mirrors math-notes' `MATH_NOTES_ARTIFACTS`).
 MATH_BOOK_ARTIFACTS: dict[str, type[BaseArtifact]] = {
     BookStructureArtifact.model_fields["artifact_type"].default: BookStructureArtifact,
     BookIndexArtifact.model_fields["artifact_type"].default: BookIndexArtifact,
+    BookRetrievalArtifact.model_fields["artifact_type"].default: BookRetrievalArtifact,
 }

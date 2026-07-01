@@ -122,8 +122,10 @@ class BookRetrievalHit(BaseModel):
 
     `chunk_id` / `node_id` tie the hit back to the indexed corpus (source
     traceability was the spike's headline metric); `text` is the chunk body;
-    `score` is the final (post-rerank) rank score; `source` carries the
-    human-readable citation (e.g. chapter/section/page) the UI shows.
+    `score` is the final (post-rerank) rank score. The traceability fields
+    (`label` / `page` / `heading_path`) are the structured citation the design
+    requires; `source` is the same, pre-rendered as one human-readable string the
+    UI can show directly.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -132,8 +134,13 @@ class BookRetrievalHit(BaseModel):
     node_id: Optional[str] = Field(None, description="Structural node the chunk belongs to.")
     text: str = Field(..., description="The chunk body.")
     score: float = Field(..., description="Final (post-rerank) rank score.")
+    label: Optional[str] = Field(None, description="Citation label (e.g. 'Theorem 7.7').")
+    page: Optional[int] = Field(None, description="1-based source page, if known.")
+    heading_path: list[str] = Field(
+        default_factory=list, description="Breadcrumb from the book root."
+    )
     source: Optional[str] = Field(
-        None, description="Human-readable citation (chapter/section/page)."
+        None, description="Pre-rendered human-readable citation (heading path + label + page)."
     )
 
 

@@ -35,7 +35,9 @@ from mathai.math_book.artifacts import (
     MATH_BOOK_ARTIFACTS,
     BookChunkRef,
     BookIndexArtifact,
+    BookRetrievalArtifact,
     BookStructureArtifact,
+    RetrievedHit,
 )
 from mathai.math_book.state import BookState
 from mathai.math_book.workflow import (
@@ -157,26 +159,56 @@ def build_book_retrieve_execution(
 
     vector_store = VectorStore()
 
+    def _load_structure(book_id: str):
+        """Load the newest `BookStructureArtifact` for `book_id` (nodes for
+        source-traceability + edges for intent-gated graph expansion). Returns
+        None if the book hasn't been indexed."""
+        results = artifact_api.query(
+            artifact_type="book_structure", fields={"book_id": book_id}, limit=1
+        )
+        return results[0] if results else None
+
     def _deps_factory(payload: dict) -> BookRetrieveDependencies:
         job_id = payload.get("_job_id")
         logger: WorkerLogger = WorkerLogger(job_id) if job_id else NullLogger()
-        # The Embedder + VectorStore seams are wired; the `Retrieve` node body
-        # (hybrid + intent-gated `_graph.expand` + Claude rerank) lands in #64.
         return BookRetrieveDependencies(
             book_id=payload.get("book_id", ""),
             query=payload.get("query", ""),
             k=int(payload.get("k", 8)),
             intent=payload.get("intent"),
+            rerank=bool(payload.get("rerank", True)),
             embeddings=embeddings,
             vector_store=vector_store,
+            load_structure=_load_structure,
             logger=logger,
         )
 
     def _persist(job_id: str, state: BookState) -> list[UUID]:
-        # TODO(#64): mint a small result artifact carrying the ranked hits so
-        #   `book_retrieve` results are ref-resolvable like every other job.
-        #   Scaffold: nothing to persist (stub Retrieve produces no hits).
-        return []
+        """Mint the small `BookRetrievalArtifact` carrying the ranked hits so a
+        retrieve run's answer is ref-resolvable like every other job's output."""
+        if not state.book_id or not state.query:
+            return []
+        artifact = BookRetrievalArtifact(
+            created_by_job=job_id,
+            book_id=state.book_id,
+            query=state.query,
+            intent=state.intent,
+            reranked=state.reranked,
+            hits=[
+                RetrievedHit(
+                    chunk_id=h.chunk_id,
+                    node_id=h.node_id,
+                    label=h.label,
+                    page=h.page,
+                    heading_path=list(h.heading_path or []),
+                    text=h.text,
+                    score=h.score,
+                )
+                for h in state.hits
+            ],
+        )
+        artifact_api.put(artifact)
+        return [artifact.artifact_id]
 
     return JobExecution(
         name="book_retrieve",

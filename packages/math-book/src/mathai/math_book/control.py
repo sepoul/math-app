@@ -18,14 +18,24 @@ from ai_platform.jobs.result_fetcher import hydrate_artifact_refs
 from mathai.math_book.artifacts import (
     MATH_BOOK_ARTIFACTS,
     BookIndexArtifact,
+    BookRetrievalArtifact,
     BookStructureArtifact,
 )
 from mathai.math_book.models import (
     BookIndexResult,
+    BookRetrievalHit,
     BookRetrievalResult,
     BookRetrieveInput,
     BookIndexInput,
 )
+
+
+def _render_source(heading_path, label, page) -> str | None:
+    """Pre-render the traceability fields as one human-readable citation string
+    (heading breadcrumb › label · page) for the UI. Pure string work."""
+    hp = " › ".join(heading_path or [])
+    pg = f"p{page}" if page else ""
+    return " ".join(x for x in (hp, label or "", pg) if x).strip() or None
 
 
 def build_book_index_control(artifact_api: ArtifactService) -> JobControl:
@@ -59,12 +69,30 @@ def build_book_index_control(artifact_api: ArtifactService) -> JobControl:
 
 def build_book_retrieve_control(artifact_api: ArtifactService) -> JobControl:
     def _fetch_result(record) -> BookRetrievalResult:
-        # Retrieval mints (at most) a small result artifact; the ranked hits are
-        # rebuilt from end-state by `execution._extract_book_retrieve_result`.
-        # This control-side fetch just surfaces the artifact refs for now — the
-        # canonical hit payload lands in #64 alongside the retrieval logic.
+        # Rebuild the canonical result from the minted `BookRetrievalArtifact`
+        # (the ranked, source-traceable hits) — the same way `book_index` rebuilds
+        # its result from the structure/index artifacts.
         artifacts = hydrate_artifact_refs(record, artifact_api)
+        ret = next((a for a in artifacts if isinstance(a, BookRetrievalArtifact)), None)
+        hits = []
+        if ret is not None:
+            hits = [
+                BookRetrievalHit(
+                    chunk_id=h.chunk_id,
+                    node_id=h.node_id,
+                    text=(h.text or ""),
+                    score=h.score,
+                    label=h.label,
+                    page=h.page,
+                    heading_path=list(h.heading_path or []),
+                    source=_render_source(h.heading_path, h.label, h.page),
+                )
+                for h in ret.hits
+            ]
         return BookRetrievalResult(
+            book_id=(ret.book_id if ret else None),
+            query=(ret.query if ret else None),
+            hits=hits,
             artifact_refs=[a.artifact_id for a in artifacts],
         )
 

@@ -49,5 +49,7 @@ class BookState(BaseJobState):
     query: Optional[str] = None
     k: int = 8
     intent: Optional[str] = None
+    # Whether the Retrieve node ran the Claude rerank pass (recorded on the result artifact).
+    reranked: bool = False
     # Filled by Retrieve — the ranked, source-traceable hits (spike Track C).
     hits: list[BookRetrievalHit] = Field(default_factory=list)
