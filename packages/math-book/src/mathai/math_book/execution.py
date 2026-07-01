@@ -1,16 +1,19 @@
-"""math_book execution plane — index + retrieve graphs + persistence (SCAFFOLD).
+"""math_book execution plane — index + retrieve graphs + persistence.
 
-Imports `pydantic_graph` (light) and, at *runtime* (inside the deps factories,
-not at module load), the platform embeddings helper + the domain vector store —
-so this module stays importable with only the graph engine present, matching
-how `math_notes.execution` defers its media helpers. The worker imports this
-after the catalog install pass.
+Imports `pydantic_graph` (light) and, at *runtime* (inside `build_*`, not at
+module load), the platform embeddings helper + the domain vector store — so this
+module stays importable with only the graph engine present, matching how
+`math_notes.execution` defers its media helpers. The worker imports this after
+the catalog install pass.
 
-The heavy pieces are stubs (#63 index / #64 retrieve): the graphs' node bodies
-are TODO no-ops (see `workflow.py`), so `_persist` here only mints artifacts
-from whatever end-state the stub nodes produced (empty in the scaffold). The
-`EmbeddingsInterpreter` wiring is present as a documented seam but NOT invoked.
-See `docs/book-rag-integration/DESIGN.md`.
+`book_index` (#63) is wired end to end: the `EmbeddingsInterpreter` + the domain
+`VectorStore` are built once per worker and threaded into the graph deps; the
+graph parses the PDF (spike Track A), builds the grounding graph (Track B),
+chunks + embeds (Track C + the platform Embedder) into the domain pgvector
+table, and `_persist` mints the `BookStructureArtifact` + `BookIndexArtifact`
+from end-state. `book_retrieve` (#64) is still a stub. The `EmbeddingsInterpreter`
+is imported defensively (its absence must not crash registration — a worker base
+predating #61 would just index nothing). See `docs/book-rag-integration/DESIGN.md`.
 """
 from __future__ import annotations
 
@@ -30,11 +33,13 @@ from ai_platform.workspace.client import PlatformClient
 from mathai.math_book.artifacts import (
     BOOK_SCHEMA_VERSION,
     MATH_BOOK_ARTIFACTS,
+    BookChunkRef,
     BookIndexArtifact,
     BookStructureArtifact,
 )
 from mathai.math_book.state import BookState
 from mathai.math_book.workflow import (
+    EMBEDDING_MODEL,
     BookIndexDependencies,
     BookRetrieveDependencies,
     _extract_book_index_result,
@@ -44,6 +49,11 @@ from mathai.math_book.workflow import (
     book_retrieve_graph,
     book_retrieve_node_registry,
 )
+
+try:  # the embeddings helper landed in the worker base with #61
+    from ai_platform.ai.providers.embeddings import EmbeddingsInterpreter
+except ImportError:  # pragma: no cover - worker base predating #61
+    EmbeddingsInterpreter = None  # type: ignore[assignment, misc]
 
 # No human gates — both jobs run straight to completion.
 book_index_policy = ExecutionPolicy(gates=[])
@@ -58,39 +68,39 @@ def build_book_index_execution(
     artifact_api: ArtifactService,
     platform_client: PlatformClient,
 ) -> JobExecution:
-    # One session per worker process; PlatformSession's httpx client is lazy, so
-    # building it at registration (before the API is necessarily reachable) is
-    # safe — first use is at job run.
+    # One session + interpreter + vector store per worker process. All are lazy
+    # at construction (httpx client / DB connection open on first use), so
+    # building them at registration — before the API/DB is necessarily reachable
+    # — is safe; the first real use happens at job run.
     session = PlatformSession.connect(_PLATFORM_API_URL)
+    embeddings = (
+        EmbeddingsInterpreter(session, model=EMBEDDING_MODEL)
+        if EmbeddingsInterpreter is not None else None
+    )
+    # Domain-owned pgvector store (connects to the tenant DB on first upsert).
+    from mathai.math_book.vector_store import VectorStore
+
+    vector_store = VectorStore()
 
     def _deps_factory(payload: dict) -> BookIndexDependencies:
         job_id = payload.get("_job_id")
         logger: WorkerLogger = WorkerLogger(job_id) if job_id else NullLogger()
         pr = payload.get("page_range")
         page_range = (int(pr["start"]), int(pr["end"])) if pr else None
-        # TODO(#63): build the platform EmbeddingsInterpreter + the domain
-        #   VectorStore here and pass them in — e.g.
-        #     from ai_platform.ai.providers.embeddings import EmbeddingsInterpreter
-        #     from mathai.math_book.vector_store import VectorStore
-        #     embeddings = EmbeddingsInterpreter(session)
-        #     vector_store = VectorStore()  # connects to the tenant DB (#63)
-        #   Left None in the scaffold so nothing heavy is imported/invoked yet;
-        #   the #61 platform helper isn't relied on at scaffold time.
         return BookIndexDependencies(
             pdf_ref=payload.get("pdf_ref", ""),
             book_id=payload.get("book_id", ""),
+            book_title=payload.get("book_title", ""),
             page_range=page_range,
-            embeddings=None,
-            vector_store=None,
+            session=session,
+            embeddings=embeddings,
+            vector_store=vector_store,
+            embedding_model=EMBEDDING_MODEL,
             logger=logger,
         )
 
     def _persist(job_id: str, state: BookState) -> list[UUID]:
-        """Mint the skeleton + index-manifest artifacts from end-state.
-
-        Scaffold: the stub nodes leave state empty, so this mints two shells
-        (or nothing when there's no book_id). #63 fills state, so this persists
-        the real skeleton + manifest with no signature change."""
+        """Mint the skeleton + index-manifest artifacts from end-state."""
         if not state.book_id:
             return []
         structure = BookStructureArtifact(
@@ -105,7 +115,16 @@ def build_book_index_execution(
             book_id=state.book_id,
             chunk_count=state.embedded_count,
             embedding_model=state.embedding_model,
-            # chunks manifest is filled in #63 from state.chunk_ids.
+            chunks=[
+                # chunk_id is "<book_id>:<node_id>" — recover the node_id for the
+                # manifest so a reader can map a chunk back to the skeleton.
+                BookChunkRef(
+                    chunk_id=cid,
+                    node_id=(cid.split(":", 1)[1] if ":" in cid else None),
+                    embedding_model=state.embedding_model,
+                )
+                for cid in state.chunk_ids
+            ],
             schema_version=BOOK_SCHEMA_VERSION,
         )
         artifact_api.put(structure)
@@ -130,19 +149,26 @@ def build_book_retrieve_execution(
     platform_client: PlatformClient,
 ) -> JobExecution:
     session = PlatformSession.connect(_PLATFORM_API_URL)
+    embeddings = (
+        EmbeddingsInterpreter(session, model=EMBEDDING_MODEL)
+        if EmbeddingsInterpreter is not None else None
+    )
+    from mathai.math_book.vector_store import VectorStore
+
+    vector_store = VectorStore()
 
     def _deps_factory(payload: dict) -> BookRetrieveDependencies:
         job_id = payload.get("_job_id")
         logger: WorkerLogger = WorkerLogger(job_id) if job_id else NullLogger()
-        # TODO(#64): build EmbeddingsInterpreter + VectorStore (query embed +
-        #   kNN) here, same seam as book_index above. Left None in the scaffold.
+        # The Embedder + VectorStore seams are wired; the `Retrieve` node body
+        # (hybrid + intent-gated `_graph.expand` + Claude rerank) lands in #64.
         return BookRetrieveDependencies(
             book_id=payload.get("book_id", ""),
             query=payload.get("query", ""),
             k=int(payload.get("k", 8)),
             intent=payload.get("intent"),
-            embeddings=None,
-            vector_store=None,
+            embeddings=embeddings,
+            vector_store=vector_store,
             logger=logger,
         )
 

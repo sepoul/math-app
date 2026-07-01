@@ -34,28 +34,49 @@ from ai_platform.jobs.artifact import BaseArtifact
 # reserved for later job issues that enrich the shape (#63/#64).
 BOOK_SCHEMA_VERSION = 1
 
-# The kinds a structural node can be. Deliberately coarse for the scaffold;
-# the extraction job (#63, spike Track A) may widen this set as it ports the
-# real skeleton taxonomy.
+# The kinds a structural node can be. Ported from the spike's `NodeKind`
+# (`git show origin/spike/extraction-skeleton:spikes/book-rag/_shared/schema.py`)
+# plus `exposition` — the full taxonomy Track A's extractor emits. Additive vs
+# the #60 scaffold set (the earlier set is a subset), so #64 still narrows the
+# same way.
 NodeKind = Literal[
     "book",
     "chapter",
     "section",
     "subsection",
+    "exposition",
     "definition",
     "theorem",
-    "lemma",
     "proposition",
+    "lemma",
     "corollary",
+    "proof",
     "example",
     "remark",
     "exercise",
 ]
 
-# The relations an edge can express between two nodes. `contains` is the
-# structural parent→child; `references`/`depends_on` are the grounding edges
-# retrieval expands along (spike Track B).
-EdgeKind = Literal["contains", "references", "depends_on", "related_to"]
+# The relations an edge can express between two nodes, ported from the spike's
+# `EdgeType` (Track B, `graph_build.py` / `expand.py`). `contains`/`parent_of`
+# are the structural tree; `next`/`previous` the reading-order sibling chain;
+# `proven_by` links a theorem-like node to its proof; `references`/
+# `referenced_by` the resolved in-text citations retrieval expands along;
+# `has_equation` links a node to its display-math regions; `depends_on`/
+# `depended_on_by` the (optional) semantic tier. Superset of the #60 scaffold
+# set — additive, so #64's intent-gated `expand()` walks the same names.
+EdgeKind = Literal[
+    "contains",
+    "parent_of",
+    "next",
+    "previous",
+    "proven_by",
+    "references",
+    "referenced_by",
+    "has_equation",
+    "depends_on",
+    "depended_on_by",
+    "related_to",
+]
 
 
 class BookNode(BaseModel):
@@ -64,18 +85,47 @@ class BookNode(BaseModel):
 
     `node_id` is stable within a `book_id` (the retrieval job's graph expansion
     and every `BookRetrievalHit.node_id` reference it). `label` is the
-    human-readable citation stub (e.g. `Ch 7 §7.1`, `Definition 7.2`).
+    human-readable citation stub (e.g. `Theorem 7.7`, `§7`).
+
+    Fields beyond `node_id`/`kind`/`label`/`title`/`page` are ported from the
+    spike's Track-A `Node`
+    (`origin/spike/extraction-skeleton:spikes/book-rag/_shared/schema.py`) — the
+    grounding graph (Track B) + contextualized chunking (Track C) rely on
+    `parent_id`, `heading_path`, `proves`, and the page span. All optional with
+    defaults, so this stays additive vs the #60 scaffold shape.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     node_id: str = Field(..., description="Stable id within the book.")
     kind: NodeKind = Field(..., description="Structural kind of this node.")
+    parent_id: Optional[str] = Field(
+        None, description="node_id of the containing node (structural tree)."
+    )
     label: Optional[str] = Field(
-        None, description="Human-readable citation stub (e.g. 'Ch 7 §7.1')."
+        None, description="Citation stub (e.g. 'Theorem 7.7', '§7', '7.1')."
     )
     title: Optional[str] = Field(None, description="Node title/heading text.")
-    page: Optional[int] = Field(None, ge=1, description="1-based source page, if known.")
+    heading_path: list[str] = Field(
+        default_factory=list,
+        description="Breadcrumb from the book root (chapter › §section › subsection).",
+    )
+    # 1-based PDF page span (Track A reads the printed-page map separately).
+    page: Optional[int] = Field(
+        None, ge=1, description="1-based source page where the node starts."
+    )
+    page_end: Optional[int] = Field(
+        None, ge=1, description="1-based source page where the node ends."
+    )
+    text: Optional[str] = Field(
+        None, description="Faithful (normalized) body text of the node."
+    )
+    proves: Optional[str] = Field(
+        None, description="For a proof node: node_id of the theorem-like node it proves."
+    )
+    confidence: Optional[float] = Field(
+        None, description="Extraction confidence (Track A typography/pattern evidence)."
+    )
 
 
 class BookEdge(BaseModel):
@@ -83,8 +133,11 @@ class BookEdge(BaseModel):
     `BookStructureArtifact`.
 
     `source`/`target` are `BookNode.node_id`s. `kind` says what the relation is
-    (`contains` for structure; `references`/`depends_on` for the grounding graph
-    retrieval expands along).
+    (`contains`/`parent_of` for structure; `next`/`previous` reading order;
+    `proven_by` proof linkage; `references`/`referenced_by` the resolved
+    citations retrieval expands along; `has_equation` math regions). `confidence`
+    is ported from the spike's `Edge.confidence` — `expand()` (#64) drops edges
+    below a floor.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -92,6 +145,9 @@ class BookEdge(BaseModel):
     source: str = Field(..., description="Source node_id.")
     target: str = Field(..., description="Target node_id.")
     kind: EdgeKind = Field(..., description="Relation kind.")
+    confidence: Optional[float] = Field(
+        None, description="Edge confidence (retrieval expansion floors on it)."
+    )
 
 
 class BookStructureArtifact(BaseArtifact):

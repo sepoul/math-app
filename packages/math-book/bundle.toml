@@ -24,11 +24,11 @@
 
 [package]
 name    = "mathai-math-book"
-version = "0.1.0"
+version = "0.2.0"
 runtime = "default"
 # Path is recorded for `deploy`; `declare-artifacts` never reads the file, so
 # it's fine for this to not exist yet during the contract-first step.
-wheel   = "dist/mathai_math_book-0.1.0-py3-none-any.whl"
+wheel   = "dist/mathai_math_book-0.2.0-py3-none-any.whl"
 
 [control]
 domain               = "math_book"
