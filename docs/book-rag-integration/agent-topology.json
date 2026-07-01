@@ -17,8 +17,8 @@
   },
   "nodes": [
     {"id": "orchestrator", "role": "control-plane", "type": "main", "parent": null, "spawn": "root", "status": "active", "branch": "integration/book-rag-platform"},
-    {"id": "a7ebeeb7afb3f10de", "role": "scout-platform-primitives", "type": "Explore", "parent": "orchestrator", "spawn": "fresh", "status": "running", "branch": null, "task": "recon ai-platform provider-helper pattern (audio/vision), existing embed/vector support, basic_agent, storage seam"},
-    {"id": "a8fd2b2d772a002f5", "role": "scout-domain-packaging", "type": "Explore", "parent": "orchestrator", "spawn": "fresh", "status": "running", "branch": null, "task": "recon math-app domain package template (control/execution/workflow/artifacts/bundle) + node->provider call + where book-RAG slots"}
+    {"id": "a7ebeeb7afb3f10de", "role": "scout-platform-primitives", "type": "Explore", "parent": "orchestrator", "spawn": "fresh", "status": "done", "branch": null, "task": "recon ai-platform provider-helper pattern", "finding": "audio/vision pattern mapped; NO existing embed/vector; PR-3 doc FORBIDS platform vector store -> add only a generic EmbeddingsInterpreter provider helper, vector store is domain-owned"},
+    {"id": "a8fd2b2d772a002f5", "role": "scout-domain-packaging", "type": "Explore", "parent": "orchestrator", "spawn": "fresh", "status": "done", "branch": null, "task": "recon math-app domain packaging", "finding": "new package packages/math-book (default runtime); file template mapped; node->provider call pattern; jobs book_index + book_retrieve"}
   ],
   "edges": [
     {"from": "orchestrator", "to": "a7ebeeb7afb3f10de", "kind": "spawn"},
