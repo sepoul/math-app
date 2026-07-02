@@ -1,7 +1,7 @@
 [project]
 name = "mathai-math-mentor"
-version = "0.1.0"
-description = "math_mentor domain — the tutoring layer over the book-RAG corpus. This package (issue #68) ships ONLY the GroundedAnchor resolver: the single seam onto the already-shipped `book_retrieve` job. `resolve_anchor` turns a (book_id, coordinate, topic, intent) request into a source-traceable GroundedAnchor with an honest trust level (grounded / section-grounded / ungrounded), talking to retrieval exclusively through a BookRetrieveFn port. No mentoring graph, no deploy wiring yet — that's future work (#69/#70/#71). Runtime = default (pydantic ecosystem)."
+version = "0.2.0"
+description = "math_mentor domain — the tutoring layer over the book-RAG corpus. Ships the GroundedAnchor resolver (#68 — the single seam onto the `book_retrieve` job) and the detection pass (#69 — a trailing-window read-model over daily notes that extracts grounded candidate signals: abandoned_crux / unverified_proof / ripe_bridge). Pure extraction logic: all book grounding rides exclusively through `resolve_anchor`, and the one LLM-shaped step (verbatim-quote pull, resolution-clause judging) is injected behind a `SignalExtractor` port. No fire/silence decision (that's #70), no mentoring graph, no deploy wiring yet. Runtime = default (pydantic ecosystem)."
 requires-python = ">=3.13"
 
 # Control-plane-only deps. This package is the *contract* + resolver LOGIC for
@@ -15,9 +15,15 @@ requires-python = ">=3.13"
 #     `PlatformBookRetrieve` adapter, imported lazily so unit tests never need
 #     the platform) and the `BaseJobInput`/`BaseJobResult` bases the math_book
 #     contract types build on.
-#   * `pydantic` — the `GroundedAnchor` contract model.
+#   * `pydantic` — the `GroundedAnchor` / `CandidateSignal` / `NoteView` models.
+#   * `mathai-math-notes` — the real `DailyNoteArtifact` / `NoteSynthesis` /
+#     `NoteMagnitude` / `NoteFlair` types the `from_daily_note` adapter (#69)
+#     mirrors into a `NoteView`. Imported LAZILY inside the adapter (like the
+#     platform adapter's lazy `ai_platform` import), so the core detection logic
+#     — run on hand-built `NoteView`s — never needs `math_notes` loaded.
 dependencies = [
     "mathai-math-book>=0.3.0",
+    "mathai-math-notes>=0.2.0",
     "aiplatform-core>=0.1.1",
     "pydantic>=2.12.5",
 ]
