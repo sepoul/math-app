@@ -1,7 +1,7 @@
 [project]
 name = "mathai-math-mentor"
-version = "0.2.0"
-description = "math_mentor domain — the tutoring layer over the book-RAG corpus. Ships the GroundedAnchor resolver (#68 — the single seam onto the `book_retrieve` job) and the detection pass (#69 — a trailing-window read-model over daily notes that extracts grounded candidate signals: abandoned_crux / unverified_proof / ripe_bridge). Pure extraction logic: all book grounding rides exclusively through `resolve_anchor`, and the one LLM-shaped step (verbatim-quote pull, resolution-clause judging) is injected behind a `SignalExtractor` port. No fire/silence decision (that's #70), no mentoring graph, no deploy wiring yet. Runtime = default (pydantic ecosystem)."
+version = "0.3.0"
+description = "math_mentor domain — the tutoring layer over the book-RAG corpus. Ships the GroundedAnchor resolver (#68 — the single seam onto the `book_retrieve` job), the detection pass (#69 — a trailing-window read-model over daily notes that extracts grounded candidate signals: abandoned_crux / unverified_proof / ripe_bridge), and the restraint & arbitration policy (#70 — the deterministic fire/silence decision → `MentorDecision`). Pure, engine-free, pydantic-only logic: all book grounding rides exclusively through `resolve_anchor` (arbitration's adversarial self-check re-resolves through it too — no independent retrieval), and the LLM-shaped steps (verbatim-quote pull + resolution-clause judging behind `SignalExtractor`; verbal-cue reading behind `NightCueReader`) are injected, never called. No mentoring graph or deploy wiring yet. Runtime = default (pydantic ecosystem)."
 requires-python = ">=3.13"
 
 # Control-plane-only deps. This package is the *contract* + resolver LOGIC for
