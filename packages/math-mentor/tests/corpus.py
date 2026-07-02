@@ -49,6 +49,7 @@ from mathai.math_book.models import (
     BookRetrievalResult,
     BookRetrieveInput,
 )
+from mathai.math_mentor.arbitration import NightCue
 from mathai.math_mentor.detection import NoteView
 from mathai.math_mentor.signals import ConceptMention, ExtractedStruggle
 
@@ -342,6 +343,57 @@ def build_extractor() -> FakeSignalExtractor:
         ],
     }
     return FakeSignalExtractor(struggles, mentions)
+
+
+# --- fake verbal-cue reader (#70) ---------------------------------------------
+
+
+class SeededNightCueReader:
+    """An in-memory `NightCueReader` (issue #70) seeded with per-date `NightCue`s.
+
+    Holds what the LLM step *would* have read from each note's transcript about
+    the learner's state — is this a distracted/light night? did a concern get
+    raised *and* self-closed within the same note? — so #70's deterministic
+    restraint policy can be exercised with no model call. Additive to the #69
+    fixture: `build_notes` / `build_retrieve` / `build_extractor` are untouched.
+    """
+
+    def __init__(self, cues: dict[str, NightCue]) -> None:
+        self._cues = cues
+
+    def read(self, note: NoteView) -> NightCue:
+        return self._cues.get(note.date, NightCue())
+
+
+def build_cues() -> SeededNightCueReader:
+    """The seeded verbal-cue reader for the corpus (#70).
+
+    Two anti-pattern cues, both read from the note as a whole (model work in
+    prod, seeded here):
+
+      * **06-24 distracted.** The note literally opens "Short one today, kind of
+        distracted." That light/low-signal verbal cue — NOT its ``brief``
+        density_tier — is what silences the day, so a genuine crux still does not
+        fire. (Density is only a bar *modifier*; the cue is the gate.)
+      * **06-20 self-closed prerequisite.** The 06-20 note flags an unverified IFT
+        estimate mid-session ("I'm not sure the estimate is tight — moving on"),
+        which #69's per-struggle extractor reads as ``abandoned`` — so a repair
+        candidate *is* emitted. But read as a whole, the same note circles back
+        and shores the estimate up by the end of the session: a note-level
+        self-close. The candidate is therefore **stale** (the prerequisite is
+        already closed the same day), and #70 must not fire a card for it. This is
+        the note-level holistic read the per-struggle disposition can't capture —
+        exactly why it rides the separate cue seam.
+
+    All other dates return a neutral `NightCue()` (no distraction, nothing
+    self-closed).
+    """
+    return SeededNightCueReader(
+        {
+            D20: NightCue(self_closed_topics=["the inverse function theorem"]),
+            D24: NightCue(distracted=True),
+        }
+    )
 
 
 # --- notes --------------------------------------------------------------------
