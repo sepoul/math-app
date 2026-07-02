@@ -1,0 +1,38 @@
+[project]
+name = "mathai-math-mentor"
+version = "0.1.0"
+description = "math_mentor domain — the tutoring layer over the book-RAG corpus. This package (issue #68) ships ONLY the GroundedAnchor resolver: the single seam onto the already-shipped `book_retrieve` job. `resolve_anchor` turns a (book_id, coordinate, topic, intent) request into a source-traceable GroundedAnchor with an honest trust level (grounded / section-grounded / ungrounded), talking to retrieval exclusively through a BookRetrieveFn port. No mentoring graph, no deploy wiring yet — that's future work (#69/#70/#71). Runtime = default (pydantic ecosystem)."
+requires-python = ">=3.13"
+
+# Control-plane-only deps. This package is the *contract* + resolver LOGIC for
+# the anchor seam; it stays engine-free (pydantic only) and reads retrieval
+# exclusively through the `BookRetrieveFn` port.
+#   * `mathai-math-book` — the single source of truth for the retrieval contract
+#     types (`BookRetrieveInput` / `BookRetrievalResult` / `BookRetrievalHit` /
+#     `RetrievalIntent`). We import them from `mathai.math_book.models`; we never
+#     redefine them.
+#   * `aiplatform-core` — provides `PlatformSession` (used only by the thin
+#     `PlatformBookRetrieve` adapter, imported lazily so unit tests never need
+#     the platform) and the `BaseJobInput`/`BaseJobResult` bases the math_book
+#     contract types build on.
+#   * `pydantic` — the `GroundedAnchor` contract model.
+dependencies = [
+    "mathai-math-book>=0.3.0",
+    "aiplatform-core>=0.1.1",
+    "pydantic>=2.12.5",
+]
+
+[project.optional-dependencies]
+# Test-only deps. The resolver is exercised entirely through an in-memory fake
+# port (no live platform, no network), so pytest is all the test env needs.
+test = [
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
