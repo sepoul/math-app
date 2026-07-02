@@ -49,8 +49,9 @@ from mathai.math_book.models import (
     BookRetrievalResult,
     BookRetrieveInput,
 )
-from mathai.math_mentor.arbitration import NightCue
+from mathai.math_mentor.arbitration import MentorDecision, NightCue
 from mathai.math_mentor.detection import NoteView
+from mathai.math_mentor.repair_card import CardWriter
 from mathai.math_mentor.signals import ConceptMention, ExtractedStruggle
 
 # --- the book + its skeleton regions ------------------------------------------
@@ -503,3 +504,156 @@ def build_corpus() -> Corpus:
         extractor=build_extractor(),
         book_id=BOOK_ID,
     )
+
+
+# --- fake card writer (#71) ---------------------------------------------------
+#
+# Additive to the #69/#70 fixture: `build_notes` / `build_retrieve` /
+# `build_extractor` / `build_cues` are untouched. #71's repair-card compose needs
+# the three *generative* strings (why-it-matters, the move phrasing, the specific
+# celebration) behind an injectable `CardWriter` — this is the in-memory fake,
+# exactly like `SeededNightCueReader` is the fake `NightCueReader`.
+
+
+def _topic_key(s: str) -> str:
+    """Normalize a topic for override lookup (case/space-insensitive)."""
+    return " ".join(s.strip().lower().split())
+
+
+def _note_snippet(note: NoteView) -> str:
+    """A short verbatim-ish snippet of the note (markdown title/body → transcript).
+
+    Used by the writer's fallback celebration so it is always drawn from the
+    *same note* (guaranteed to share substantive tokens with it) rather than
+    generic praise — mirroring what a real writer would pull from the note.
+    """
+    raw = (note.markdown or note.transcript or "").replace("#", " ").replace("\n", " ")
+    return " ".join(raw.split()[:12]).strip()
+
+
+class SeededCardWriter:
+    """An in-memory `CardWriter` (issue #71) with per-topic overrides + fallbacks.
+
+    Holds what the LLM writer *would* have produced for the three generative
+    strings, so #71's deterministic compose + tone gate can be exercised with no
+    model call:
+
+      * `why_it_matters` — a one-line crux-vs-bookkeeping rationale.
+      * `phrase_move` — the move's **action** (verb + specific step), **without**
+        a citation (the deterministic assembler appends the anchor-rendered
+        citation). The verb respects the anchor's trust: reread a section vs. redo
+        an exact problem.
+      * `celebrate` — one specific real win, always drawn from the note (the
+        fallback quotes a real snippet, so it is never generic praise).
+
+    Overrides are keyed by the winning signal's (normalized) topic; anything
+    unseeded falls back to a note-grounded default that still passes the gate.
+    """
+
+    def __init__(
+        self,
+        why: Optional[dict[str, str]] = None,
+        move: Optional[dict[str, str]] = None,
+        celebrate: Optional[dict[str, str]] = None,
+    ) -> None:
+        self._why = {_topic_key(k): val for k, val in (why or {}).items()}
+        self._move = {_topic_key(k): val for k, val in (move or {}).items()}
+        self._celebrate = {_topic_key(k): val for k, val in (celebrate or {}).items()}
+
+    def why_it_matters(self, decision: MentorDecision, note: NoteView) -> str:
+        topic = decision.winning_signal.topic
+        key = _topic_key(topic)
+        if key in self._why:
+            return self._why[key]
+        return (
+            f"This is the crux the rest of {topic} rests on, not bookkeeping — "
+            "leave it unshored and everything built on top of it wobbles."
+        )
+
+    def phrase_move(self, decision: MentorDecision, note: NoteView) -> str:
+        topic = decision.winning_signal.topic
+        key = _topic_key(topic)
+        if key in self._move:
+            return self._move[key]
+        kind = decision.winning_signal.kind
+        trust = decision.grounded_anchor.trust_level
+        if kind == "unverified_proof":
+            return "Rebuild that proof line by line and pin down the estimate you waved past"
+        if trust == "grounded":
+            return "Redo the key computation by hand from a blank page"
+        return "Reread the section and redo the key step from scratch"
+
+    def celebrate(self, decision: MentorDecision, note: NoteView) -> str:
+        topic = decision.winning_signal.topic
+        key = _topic_key(topic)
+        if key in self._celebrate:
+            return self._celebrate[key]
+        snippet = _note_snippet(note)
+        return (
+            "You did the real work here and named the gap yourself — you wrote "
+            f"“{snippet}”, and that honesty is exactly the win."
+        )
+
+
+def build_card_writer() -> SeededCardWriter:
+    """The seeded fake card writer for the #71 scenarios.
+
+    Seeds specific, note-grounded strings for the two canonical flavors —
+    ``abandonment`` (06-28 Stokes, a *grounded* coordinate anchor) and
+    ``unverified_proof`` (the IFT, a *section-grounded* anchor) — so the composed
+    cards read like a real tutor and exercise both trust levels. Any other topic
+    falls back to the note-grounded defaults above.
+    """
+    return SeededCardWriter(
+        why={
+            "stokes' theorem on manifolds": (
+                "Stokes is the spine of the whole integration chapter — lean on it "
+                "unread and every computation above it rests on a claim you never checked."
+            ),
+            "the inverse function theorem": (
+                "The IFT hinges on that estimate being tight — if the bound is loose the "
+                "local inverse you built doesn't actually exist."
+            ),
+        },
+        move={
+            "stokes' theorem on manifolds": "Redo the boundary-orientation computation by hand",
+            "the inverse function theorem": (
+                "Rebuild the contraction estimate line by line and check the bound you skipped"
+            ),
+        },
+        celebrate={
+            "stokes' theorem on manifolds": (
+                "You flagged the gap yourself — you wrote that you used the statement without "
+                "reading the proof, and naming your own soft spot is exactly the honesty this works on."
+            ),
+            "the inverse function theorem": (
+                "You got the contraction argument sketched and were straight that you left the "
+                "estimate unchecked — spotting your own soft step is the win."
+            ),
+        },
+    )
+
+
+def build_unverified_proof_note() -> NoteView:
+    """A standalone 06-27 **unverified-proof** note (existing builders untouched).
+
+    NOT part of `build_notes()`'s 10-note drive — a separate fixture for #71's
+    unverified-proof flavor: the learner sketched the IFT proof and left the key
+    estimate unchecked. Its topic (``the inverse function theorem``) resolves
+    ``section-grounded`` via `build_retrieve`'s §8 rule, so it also exercises the
+    section-grounded citation degradation on the repair card.
+    """
+    return NoteView(
+        date=D27,
+        transcript=(
+            "I think I proved the inverse function theorem case, but I'm honestly not sure "
+            "the estimate is tight — moving on."
+        ),
+        concepts=["inverse function theorem"],
+        density_tier="standard",
+        markdown="## Inverse Function Theorem\nSketched the contraction argument; left the estimate unchecked.",
+    )
+
+
+# Assert the fake satisfies the injectable seam (mirrors the #70 cue-reader check).
+assert isinstance(SeededCardWriter(), CardWriter)

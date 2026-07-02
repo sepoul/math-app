@@ -1,6 +1,6 @@
 # math-mentor
 
-The tutoring layer over the book-RAG corpus. This package currently ships three
+The tutoring layer over the book-RAG corpus. This package currently ships four
 issues of pure logic:
 
 - **#68 — the `GroundedAnchor` resolver**: the single seam onto the
@@ -9,11 +9,13 @@ issues of pure logic:
   that extracts *grounded candidate signals*.
 - **#70 — restraint & arbitration**: the deterministic **fire/silence** decision
   over #69's candidates → a `MentorDecision`.
+- **#71 — repair card compose + tone gate**: turns a *fired* repair
+  `MentorDecision` into one `MentorCard` — trust-aware citation rendering + a
+  deterministic human-tutor gate.
 
 > **Deploy wiring is deferred.** These issues are *logic contracts* only. There
 > is intentionally **no** `bundle.toml`, `control.py`, or `execution.py` here
-> yet — turning `math_mentor` into a deployable platform job is future work
-> (#71).
+> yet — turning `math_mentor` into a deployable platform job is future work.
 
 ## What #68 is
 
@@ -156,6 +158,66 @@ escalates**). Silence never counts as an ignore.
 numbers are provisional — what matters is the ordering they induce and that the
 bar is monotone non-decreasing in the ignore streak.
 
+## What #71 is — the repair card compose + tone gate
+
+`compose_repair_card(decision, note, writer, *, check_in="Sunday")` takes a
+**fired** `MentorDecision{kind:"repair"}` (from #70) and its `GroundedAnchor`, and
+composes **one** `MentorCard`. It owns the *content, shape, and tone* of the
+directive — **not** the decision to fire (that is #70). One shape, two flavors:
+`abandonment` (`abandoned_crux`) and `unverified_proof`. Like #68/#69/#70 it is
+engine-free, deterministic, pydantic-only — **no model call**.
+
+```
+MentorCard = { flavor: "abandonment" | "unverified_proof",
+               catch: str,            # 1. the catch — his verbatim words
+               why_it_matters: str,   # 2. one line, crux vs bookkeeping
+               move: str,             # 3. one book-rooted move (carries the citation)
+               close: str,            # 4. a concrete when ("I'll ask you … on Sunday")
+               on_his_side: str,      # 5. one specific real win from the same note
+               citation: str,         # rendered ONLY from the anchor's fields
+               trust_level, source_note_date,
+               text: str }            # the assembled ~4-line card
+```
+
+**The hard rule.** The single move's anchor **is** the `GroundedAnchor` the
+decision already carries — the card **never invents a coordinate**. The citation
+is rendered *only* from the anchor's `label` / `source` / `page` /
+`heading_path` (`render_citation`). No OCR, no SQL, no re-retrieval:
+`compose_repair_card` doesn't even take the port — it renders the
+self-check-re-confirmed anchor it was handed.
+
+**Trust-aware citation degradation.**
+
+| anchor trust       | citation                                                        |
+|--------------------|-----------------------------------------------------------------|
+| `grounded`         | the **exact** label — `Problem 11.1 (Tu, p.142)`                 |
+| `section-grounded` | **degraded** to the section — `§8 The Inverse Function Theorem (Tu, p.90)`, **no** fabricated exercise number |
+| `ungrounded`       | **refused** — a fired decision guarantees a non-ungrounded anchor, so this is a #70 contract violation: compose **raises `ValueError`** and hands back, never fabricating a number |
+
+**The one seam: `CardWriter`.** The three genuinely generative bits — the
+one-line `why_it_matters`, the move's action phrasing (`phrase_move`, verb + the
+specific step, **without** the citation — the module appends the anchor-rendered
+one, so the writer can't smuggle a coordinate in), and selecting the specific
+real win (`celebrate`) — ride an injectable `CardWriter` Protocol, exactly like
+#69's `SignalExtractor` / #70's `NightCueReader`. Production injects a
+Claude-backed writer; tests inject an in-memory fake (`corpus.build_card_writer`).
+The deterministic policy — assembly of the five parts, the trust-aware citation,
+the tone gate — stays in the module and calls no model.
+
+**The tone / human-tutor gate.** `tone_gate_violations(card, *, decision, note)`
+(with `passes_tone_gate` / `assert_tone_gate`) is a deterministic validator that
+asserts a card reads like something a real tutor would say. It checks: the catch
+**quotes him** verbatim (`== decision.quote`); the move **names the specific
+step, not the topic**, carries a directive verb, is **exactly one** book-anchored
+move (contains the citation once), and **never the answer**; `grounded` cites the
+exact label while `section-grounded` carries **no** fabricated exercise number;
+the celebration is **note-grounded** (shares a substantive token with the note)
+and not generic praise; the close names a **concrete when**; the card is ~4 lines
+/ ≤ ~10s; and there is **no** grade or "if you'd like…" tell anywhere.
+`compose_repair_card` gates its own output — it never returns a card that fails.
+It leans **maximally directive** because the platform's shipped `dont_spoil`
+guarantee means the move can point hard at the work with zero spoiler risk.
+
 ## Layout
 
 ```
@@ -166,18 +228,22 @@ src/mathai/math_mentor/
   signals.py      CandidateSignal + SignalExtractor port + kind→intent mapping (#69)
   detection.py    NoteView read-model + from_daily_note adapter + detect_candidates (#69)
   arbitration.py  MentorDecision + NightCue(Reader) + arbitrate + drive_corpus (#70)
+  repair_card.py  MentorCard + CardWriter port + compose_repair_card + render_citation + tone gate (#71)
 tests/
   test_resolve_anchor.py   #68 AC coverage with an in-memory fake port
   corpus.py                the shared 10-note fixture (notes + fake port + fake
-                           extractor + fake verbal-cue reader)
+                           extractor + fake verbal-cue reader + fake card writer)
   test_detection.py        #69 AC coverage, driven off the corpus
   test_arbitration.py      #70 AC coverage, driven off the corpus
+  test_repair_card.py      #71 AC coverage, driven off the corpus
 ```
 
 The `corpus` module is a **reusable** fixture (#70/#71 import it), not inline in
 one test file — the canonical 2025-06-19..06-28 note window that realizes every
 detection scenario. #70 extended it **additively** with `build_cues()` (the seeded
-`NightCueReader`); the #69 builders are untouched.
+`NightCueReader`); #71 added `build_card_writer()` (the seeded `CardWriter`) and
+`build_unverified_proof_note()` (a standalone 06-27 unverified-proof scenario) —
+the #69/#70 builders are all untouched.
 
 ## Tests
 
@@ -202,3 +268,10 @@ uv pip install --python /tmp/mentor-venv/bin/python --no-deps \
 - "Topically relevant" is operationalized as *clears the score floor*: the port
   is the sole data source and it already scoped by `book_id` + the query, so any
   hit above the floor is by construction a relevant hit for this query.
+- **#71 tone dial / gate bounds** — `MAX_CARD_LINES` (6), `MAX_CARD_CHARS` (700),
+  `MAX_WHY_CHARS` (200) bound "~4 lines / ~10s"; the verb / spoiler / generic-praise
+  / not-a-tutor word lists are provisional. How firm the move should read (the tone
+  dial) is an open seam — the one metric to watch is *did he act*.
+- **#71 the close's "when"** — `compose_repair_card(check_in="Sunday")` is the
+  concrete-when default; a real surface (#54) would pass the learner's actual
+  check-in day. The gate only asserts the close names *a* concrete when.
